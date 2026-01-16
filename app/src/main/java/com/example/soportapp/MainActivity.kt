@@ -58,6 +58,9 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun SoportApp() {
     val navController = rememberNavController()
+    // Obtenemos el técnico principal desde el repositorio
+    val technician = TechnicianRepository.getMainTechnician()
+
     NavHost(navController = navController, startDestination = "welcome") {
         composable("welcome") {
             WelcomeScreen(onStart = { navController.navigate("userTypeSelection") })
@@ -72,14 +75,12 @@ fun SoportApp() {
             "serviceSelection/{userType}",
             arguments = listOf(navArgument("userType") { type = NavType.StringType })
         ) { backStackEntry ->
-            val userType = backStackEntry.arguments?.getString("userType")
-            if (userType != null) {
-                ServiceSelectionScreen(
-                    userType = userType,
-                    onSelect = { serviceId -> navController.navigate("problemDescription/$userType/$serviceId") },
-                    onBack = { navController.popBackStack() }
-                )
-            }
+            val userType = backStackEntry.arguments?.getString("userType") ?: ""
+            ServiceSelectionScreen(
+                userType = userType,
+                onSelect = { serviceId -> navController.navigate("problemDescription/$userType/$serviceId") },
+                onBack = { navController.popBackStack() }
+            )
         }
         composable(
             "problemDescription/{userType}/{serviceId}",
@@ -170,18 +171,21 @@ fun SoportApp() {
         }
         composable("technicianAssignment") {
             TechnicianAssignmentScreen(
+                technician = technician,
                 onContinue = { navController.navigate("serviceStatus") },
                 onBack = { navController.popBackStack() }
             )
         }
         composable("serviceStatus") {
             ServiceStatusScreen(
+                technician = technician,
                 onBack = { navController.popBackStack() },
                 onFinish = { navController.navigate("rating") }
             )
         }
         composable("rating") {
             RatingScreen(
+                technicianName = technician.name,
                 onFinish = { _, _ -> 
                     navController.navigate("welcome") {
                         popUpTo("welcome") { inclusive = true }

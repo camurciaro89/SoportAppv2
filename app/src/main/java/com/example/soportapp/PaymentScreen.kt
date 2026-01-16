@@ -24,12 +24,15 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PaymentScreen(
-    amount: Int = 35000, // Corregido a base de 35k
+    amount: Int = 35000,
     onPaymentSuccess: () -> Unit,
     onBack: () -> Unit
 ) {
     var selectedMethod by remember { mutableStateOf("nequi") }
-    val currencyFormatter = NumberFormat.getCurrencyInstance(Locale("es", "CO")).apply {
+    
+    // Corrección de Locale deprecated: Usar forLanguageTag para estándares modernos
+    val localeCO = Locale.forLanguageTag("es-CO")
+    val currencyFormatter = NumberFormat.getCurrencyInstance(localeCO).apply {
         maximumFractionDigits = 0
     }
 
@@ -39,7 +42,7 @@ fun PaymentScreen(
                 title = {
                     Column {
                         Text("Pago seguro", fontSize = 16.sp)
-                        Text("Paso 7 de 9", fontSize = 12.sp, color = Color.Gray)
+                        Text("Paso 6 de 10", fontSize = 12.sp, color = Color.Gray)
                     }
                 },
                 navigationIcon = {
