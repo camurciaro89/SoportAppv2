@@ -85,7 +85,7 @@ fun UserTypeSelectionScreen(onSelect: (String) -> Unit, onBack: () -> Unit) {
                 UserTypeCard(
                     icon = Icons.Default.Home, 
                     title = "Hogar", 
-                    description = "Reparación de computadores personales y portátiles", 
+                    description = "Mantenimiento y reparación de computadores personales y portátiles", 
                     iconBgColors = listOf(Color(0xFF14B8A6), Color(0xFF0D9488)), 
                     onClick = { onSelect("hogar") }
                 )

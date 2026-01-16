@@ -50,7 +50,7 @@ fun ProblemDescriptionScreen(
         if (day == "Sábado") timeInt in 800..1100 else timeInt in 800..1900 && (timeInt <= 1300 || timeInt >= 1400)
     }
 
-    // AHORA SOLO SON OBLIGATORIOS EL PROBLEMA Y LA DIRECCIÓN
+    // Solo son obligatorios el problema y la dirección
     val isValid = description.text.isNotBlank() && location.text.isNotBlank()
 
     Scaffold(
@@ -106,7 +106,7 @@ fun ProblemDescriptionScreen(
                 )
             }
 
-            // BOTÓN OPCIONAL: ADJUNTAR EVIDENCIA
+            // Fotos (Opcional)
             item {
                 Text("Fotos del equipo (opcional)", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
@@ -124,17 +124,9 @@ fun ProblemDescriptionScreen(
                         fontSize = 15.sp
                     )
                 }
-                if (photos.isNotEmpty()) {
-                    Text(
-                        "Toca el botón para añadir más fotos", 
-                        fontSize = 12.sp, 
-                        color = Color.Gray,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
             }
 
-            // Día de la semana
+            // Día sugerido
             item {
                 var expanded by remember { mutableStateOf(false) }
                 Text("Día sugerido (opcional)", fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -165,7 +157,7 @@ fun ProblemDescriptionScreen(
                 }
             }
 
-            // Hora
+            // Hora sugerida
             item {
                 Text("Hora sugerida (opcional)", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 OutlinedTextField(
@@ -179,22 +171,28 @@ fun ProblemDescriptionScreen(
                 )
             }
 
-            // Nota Festivos
+            // NOTA SOLICITADA
             item {
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF2F2)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7ED)),
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, Color(0xFFFECACA))
+                    border = BorderStroke(1.dp, Color(0xFFFED7AA))
                 ) {
                     Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.EventBusy, null, tint = Color(0xFFB91C1C), modifier = Modifier.size(24.dp))
+                        Icon(Icons.Default.Info, null, tint = Color(0xFFEA580C), modifier = Modifier.size(24.dp))
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text("No hay servicio domingos ni festivos.", fontSize = 14.sp, color = Color(0xFFB91C1C), fontWeight = FontWeight.Medium)
+                        Text(
+                            text = "Los servicios en domingos y festivos son excepcionales y requieren confirmación directa del técnico según disponibilidad.",
+                            fontSize = 13.sp, 
+                            color = Color(0xFF9A3412), 
+                            fontWeight = FontWeight.Medium,
+                            lineHeight = 18.sp
+                        )
                     }
                 }
             }
 
-            // Botón (Ahora solo requiere Problema y Dirección)
+            // Botón
             item {
                 Button(
                     onClick = {

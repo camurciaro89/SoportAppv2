@@ -151,15 +151,35 @@ fun TechnicianFoundContent(technician: Technician, onContinue: () -> Unit) {
                         Icon(Icons.Default.Person, null, modifier = Modifier.size(48.dp), tint = Color(0xFF94A3B8))
                     }
                     Spacer(modifier = Modifier.height(16.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = technician.name, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Surface(color = Color(0xFF22C55E), shape = RoundedCornerShape(4.dp)) {
-                            Text("VERIFICADO", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                    
+                    // NOMBRE DEL TÉCNICO
+                    Text(text = technician.name, fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    // NOTA VERIFICADO (Ahora debajo del nombre y bien diseñada)
+                    Surface(
+                        color = Color(0xFF22C55E), 
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(12.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                "VERIFICADO", 
+                                color = Color.White, 
+                                fontSize = 11.sp, 
+                                fontWeight = FontWeight.ExtraBold
+                            )
                         }
                     }
-                    Text(text = technician.title, fontSize = 14.sp, color = Color(0xFF2563EB), fontWeight = FontWeight.Medium)
+                    
                     Spacer(modifier = Modifier.height(12.dp))
+                    Text(text = technician.title, fontSize = 14.sp, color = Color(0xFF2563EB), fontWeight = FontWeight.Medium, textAlign = TextAlign.Center)
+                    Spacer(modifier = Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         repeat(5) { Icon(Icons.Default.Star, null, tint = Color(0xFFF59E0B), modifier = Modifier.size(18.dp)) }
                         Spacer(modifier = Modifier.width(8.dp))

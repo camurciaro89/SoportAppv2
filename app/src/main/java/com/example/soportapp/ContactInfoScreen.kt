@@ -1,5 +1,6 @@
 package com.example.soportapp
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -9,7 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.soportapp.ui.theme.SoportAppTheme
 
+// CLASE DE DATOS PARA LA INFORMACIÓN DE CONTACTO
 data class ContactInfo(
     val name: String,
     val phone: String
@@ -105,44 +107,47 @@ fun ContactInfoScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // NOTA VISUALMENTE ATRACTIVA (ESTILO PREMIUM)
-            val noteGradient = Brush.horizontalGradient(
-                colors = listOf(Color(0xFFEFF6FF), Color(0xFFDBEAFE))
+            // NOTA DE IDENTIDAD OFICIAL (ESTILO PREMIUM Y LLAMATIVO)
+            val noteGradient = Brush.verticalGradient(
+                colors = listOf(Color(0xFFF8FAFC), Color(0xFFF1F5F9))
             )
             
-            Surface(
+            Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                color = Color.White,
-                shadowElevation = 2.dp
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(2.dp, Color(0xFF2563EB)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
             ) {
                 Row(
                     modifier = Modifier
                         .background(noteGradient)
                         .padding(20.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.Top
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
-                            .background(Color.White, CircleShape),
+                            .size(48.dp)
+                            .background(Color(0xFF2563EB), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.VerifiedUser, null, tint = Color(0xFF2563EB), modifier = Modifier.size(24.dp))
+                        Icon(Icons.Default.Security, null, tint = Color.White, modifier = Modifier.size(28.dp))
                     }
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
                         Text(
-                            "Registro automático", 
-                            fontWeight = FontWeight.Bold, 
-                            fontSize = 14.sp, 
+                            "Tu identidad oficial en TuTranquilo", 
+                            fontWeight = FontWeight.ExtraBold, 
+                            fontSize = 15.sp, 
                             color = Color(0xFF1E40AF)
                         )
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            "Guardaremos tu historial de servicios de forma segura para futuras consultas.",
-                            fontSize = 12.sp,
-                            color = Color(0xFF1E40AF).copy(alpha = 0.8f),
-                            lineHeight = 16.sp
+                            "Este será tu perfil único dentro de la plataforma. Con esta información podrás consultar en cualquier momento tu historial de servicios, facturas y garantías de forma segura y organizada.",
+                            fontSize = 13.sp,
+                            color = Color(0xFF1E40AF),
+                            lineHeight = 18.sp,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }

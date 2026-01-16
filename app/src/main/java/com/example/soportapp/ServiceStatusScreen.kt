@@ -26,14 +26,28 @@ import kotlinx.coroutines.delay
 import java.text.NumberFormat
 import java.util.Locale
 
+// 1. DEFINICIONES DE ESTADOS Y MODELOS
+enum class ServiceState {
+    EVALUANDO, EN_CAMINO, SOPORTE_REMOTO, EN_DIAGNOSTICO, FINALIZADO
+}
+
+data class StatusUiInfo(
+    val title: String,
+    val subtitle: String,
+    val icon: ImageVector,
+    val iconBg: Color,
+    val iconTint: Color,
+    val progress: Float
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ServiceStatusScreen(
-    technician: Technician, // PARÁMETRO AÑADIDO PARA COHERENCIA
+    technician: Technician,
     onBack: () -> Unit,
     onFinish: () -> Unit
 ) {
-    var currentState by remember { mutableStateOf(ServiceState.EVALUANDO) }
+    var currentState by remember { mutableStateOf<ServiceState>(ServiceState.EVALUANDO) }
     var showPaymentSheet by remember { mutableStateOf(false) }
     var isExtraPaid by remember { mutableStateOf(false) }
     var isSelfDelivery by remember { mutableStateOf(false) }
@@ -66,20 +80,37 @@ fun ServiceStatusScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         },
+        // BOTÓN FIJO EN LA PARTE INFERIOR: COHERENCIA Y FACILIDAD DE USO
+        bottomBar = {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = Color.White,
+                shadowElevation = 12.dp
+            ) {
+                Box(modifier = Modifier.padding(20.dp)) {
+                    Button(
+                        onClick = onFinish,
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A))
+                    ) {
+                        Text("Finalizar servicio y calificar", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        },
         containerColor = Color(0xFFF9FAFB)
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             LazyColumn(
-                modifier = Modifier
-                    .padding(paddingValues)
-                    .fillMaxSize()
-                    .padding(horizontal = 20.dp),
+                modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 item { Spacer(modifier = Modifier.height(8.dp)) }
 
                 item { StatusProgressCard(currentState, isExtraPaid, isSelfDelivery) }
 
+                // CARD DE ACCIÓN REQUERIDA (Unificado a $30.000 para seriedad y honestidad)
                 if (!isExtraPaid && !isSelfDelivery && (currentState == ServiceState.EN_CAMINO || currentState == ServiceState.EN_DIAGNOSTICO)) {
                     item {
                         ActionRequiredCard(
@@ -96,58 +127,157 @@ fun ServiceStatusScreen(
 
                 item { AssignedTechnicianCard(technician, currentState) }
                 item { TimelineCard(currentState) }
+                
+                item { Spacer(modifier = Modifier.height(32.dp)) }
+            }
 
-                item {
-                    TextButton(
-                        onClick = onFinish,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.textButtonColors(contentColor = Color.Gray)
-                    ) {
-                        Text("Finalizar servicio", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            // PASARELA DE PAGO INTEGRADA (Simulando Paso 6)
+            if (showPaymentSheet) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = Color.Black.copy(alpha = 0.5f)
+                ) {
+                    Box(contentAlignment = Alignment.BottomCenter) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.75f),
+                            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White)
+                        ) {
+                            Column(modifier = Modifier.padding(24.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Confirmar pago adicional", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                    IconButton(onClick = { showPaymentSheet = false }) {
+                                        Icon(Icons.Default.Close, null)
+                                    }
+                                }
+                                
+                                Spacer(modifier = Modifier.height(16.dp))
+                                
+                                if (isProcessingPayment) {
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth().weight(1f),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        CircularProgressIndicator(color = Color(0xFF2563EB))
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        Text("Procesando pago seguro...", color = Color.Gray)
+                                    }
+                                } else {
+                                    val amount = 30000 // TARIFA ÚNICA DE DESPLAZAMIENTO
+                                    Text("Valor a pagar: ${currencyFormatter.format(amount)}", fontSize = 22.sp, color = Color(0xFF2563EB), fontWeight = FontWeight.ExtraBold)
+                                    Text("Concepto: Traslado técnico especializado", fontSize = 14.sp, color = Color.Gray)
+                                    
+                                    Spacer(modifier = Modifier.height(24.dp))
+                                    
+                                    var selectedMethod by remember { mutableStateOf("nequi") }
+                                    PaymentMethodItemLocal(
+                                        title = "Nequi / Daviplata",
+                                        icon = Icons.Default.QrCodeScanner,
+                                        isSelected = selectedMethod == "nequi",
+                                        onClick = { selectedMethod = "nequi" }
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    PaymentMethodItemLocal(
+                                        title = "Tarjeta / PSE",
+                                        icon = Icons.Default.CreditCard,
+                                        isSelected = selectedMethod == "card",
+                                        onClick = { selectedMethod = "card" }
+                                    )
+                                    
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    
+                                    Button(
+                                        onClick = { isProcessingPayment = true },
+                                        modifier = Modifier.fillMaxWidth().height(60.dp),
+                                        shape = RoundedCornerShape(16.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A))
+                                    ) {
+                                        Text("Confirmar Pago de $30.000", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                    }
+                                }
+                            }
+                        }
                     }
-                    Spacer(modifier = Modifier.height(24.dp))
+                }
+                
+                if (isProcessingPayment) {
+                    LaunchedEffect(Unit) {
+                        delay(2500)
+                        isExtraPaid = true
+                        isProcessingPayment = false
+                        showPaymentSheet = false
+                    }
                 }
             }
-
-            if (showPaymentSheet) {
-                // Pasarela de pago (Omitida por brevedad, se mantiene igual)
-            }
-        }
-    }
-}
-
-// DEFINICIONES DE ESTADOS Y COMPONENTES SE MANTIENEN IGUAL...
-enum class ServiceState { EVALUANDO, EN_CAMINO, SOPORTE_REMOTO, EN_DIAGNOSTICO, FINALIZADO }
-data class StatusUiInfo(val title: String, val subtitle: String, val icon: ImageVector, val iconBg: Color, val iconTint: Color, val progress: Float)
-
-@Composable
-fun StatusProgressCard(state: ServiceState, isExtraPaid: Boolean, isSelfDelivery: Boolean) {
-    val uiInfo = when (state) {
-        ServiceState.EVALUANDO -> StatusUiInfo("Evaluando tu caso", "Revisando información", Icons.AutoMirrored.Filled.FactCheck, Color(0xFFF1F5F9), Color(0xFF475569), 0.15f)
-        ServiceState.EN_CAMINO -> StatusUiInfo(if (isExtraPaid) "Técnico en camino" else "Esperando pago", "Hacia tu ubicación", Icons.Default.DirectionsCar, Color(0xFFDBEAFE), Color(0xFF2563EB), 0.45f)
-        ServiceState.SOPORTE_REMOTO -> StatusUiInfo("Soporte remoto activo", "Conexión segura", Icons.Default.Devices, Color(0xFFEDE9FE), Color(0xFF7C3AED), 0.45f)
-        ServiceState.EN_DIAGNOSTICO -> StatusUiInfo(if (isExtraPaid) "Recolección en curso" else if (isSelfDelivery) "Esperando entrega" else "Acción requerida", "Centro de diagnóstico", Icons.Default.Apartment, Color(0xFFFEF3C7), Color(0xFFD97706), 0.45f)
-        else -> StatusUiInfo("Servicio", "", Icons.Default.Build, Color.Gray, Color.White, 0.5f)
-    }
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFF3F4F6))) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.size(48.dp).background(uiInfo.iconBg, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) { Icon(uiInfo.icon, null, tint = uiInfo.iconTint) }
-                Spacer(modifier = Modifier.width(16.dp)); Column { Text(uiInfo.title, fontSize = 18.sp, fontWeight = FontWeight.Bold); Text(uiInfo.subtitle, fontSize = 14.sp, color = Color.Gray) }
-            }
-            Spacer(modifier = Modifier.height(20.dp))
-            LinearProgressIndicator(progress = { uiInfo.progress }, modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape), color = uiInfo.iconTint, trackColor = Color(0xFFE2E8F0))
         }
     }
 }
 
 @Composable
 fun ActionRequiredCard(state: ServiceState, onPayClick: () -> Unit, onSelfDeliveryClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7ED)), border = BorderStroke(1.dp, Color(0xFFFED7AA))) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7ED)),
+        border = BorderStroke(1.dp, Color(0xFFFED7AA))
+    ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Payments, null, tint = Color(0xFFEA580C)); Spacer(modifier = Modifier.width(12.dp)); Text("Acción requerida", fontWeight = FontWeight.Bold, color = Color(0xFF9A3412)) }
-            Spacer(modifier = Modifier.height(12.dp)); Text(text = if (state == ServiceState.EN_DIAGNOSTICO) "Se requiere traslado al laboratorio." else "Camilo debe desplazarse.", fontSize = 13.sp, color = Color(0xFF9A3412))
-            Spacer(modifier = Modifier.height(16.dp)); Button(onClick = onPayClick, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEA580C))) { Text(if (state == ServiceState.EN_DIAGNOSTICO) "Pagar recogida" else "Pagar traslado") }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Payments, null, tint = Color(0xFFEA580C))
+                Spacer(modifier = Modifier.width(12.dp))
+                Text("Acción requerida", fontWeight = FontWeight.Bold, color = Color(0xFF9A3412))
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = if (state == ServiceState.EN_DIAGNOSTICO) "El técnico sugiere traslado al laboratorio. Elige una opción:" else "El técnico debe desplazarse a tu ubicación para continuar.",
+                fontSize = 14.sp, color = Color(0xFF9A3412), lineHeight = 20.sp
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = onPayClick, 
+                modifier = Modifier.fillMaxWidth().height(52.dp), 
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEA580C)),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("Pagar traslado o recogida ($30.000)", fontWeight = FontWeight.Bold)
+            }
+            if (state == ServiceState.EN_DIAGNOSTICO) {
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = onSelfDeliveryClick, 
+                    modifier = Modifier.fillMaxWidth().height(52.dp), 
+                    border = BorderStroke(1.dp, Color(0xFFEA580C)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Yo lo llevo personalmente ($0)", color = Color(0xFFEA580C), fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun StatusProgressCard(state: ServiceState, isExtraPaid: Boolean, isSelfDelivery: Boolean) {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFF3F4F6))) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.size(48.dp).background(Color(0xFFF1F5F9), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) { Icon(if (state == ServiceState.EN_CAMINO) Icons.Default.DirectionsCar else Icons.AutoMirrored.Filled.FactCheck, null, tint = Color(0xFF2563EB)) }
+                Spacer(modifier = Modifier.width(16.dp)); Column { 
+                    val title = when(state) {
+                        ServiceState.EVALUANDO -> "Evaluando tu caso"
+                        ServiceState.EN_CAMINO -> if (isExtraPaid) "Técnico en camino" else "Esperando pago"
+                        ServiceState.EN_DIAGNOSTICO -> if (isExtraPaid) "Recolección en curso" else if (isSelfDelivery) "Esperando entrega" else "Acción requerida"
+                        else -> "Servicio activo"
+                    }
+                    Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("Estado: ${state.name.lowercase().replaceFirstChar { it.uppercase() }}", fontSize = 14.sp, color = Color.Gray) 
+                }
+            }
         }
     }
 }
@@ -157,7 +287,7 @@ fun SelfDeliveryInfoCard() {
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)), border = BorderStroke(1.dp, Color(0xFFDCFCE7))) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Store, null, tint = Color(0xFF16A34A)); Spacer(modifier = Modifier.width(12.dp)); Text("Punto de entrega", fontWeight = FontWeight.Bold, color = Color(0xFF166534)) }
-            Spacer(modifier = Modifier.height(8.dp)); Text("Calle 123 #45-67, Bogotá", fontSize = 14.sp, fontWeight = FontWeight.Bold); Text("ID de servicio: #ST-9921", fontSize = 12.sp, color = Color(0xFF166534))
+            Spacer(modifier = Modifier.height(8.dp)); Text("Calle 123 #45-67, Bogotá", fontSize = 14.sp, fontWeight = FontWeight.SemiBold); Text("Horario: Lun-Vie 8:00 AM - 6:00 PM", fontSize = 12.sp, color = Color.Gray); Text("ID de servicio: #ST-9921", fontSize = 12.sp, color = Color(0xFF166534), fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -180,21 +310,31 @@ fun TimelineCard(state: ServiceState) {
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFF3F4F6))) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text("Evolución", fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 20.dp))
-            TimelineItem("Solicitud y Pago Base", "Completado", Icons.Default.CheckCircle, true, true)
-            TimelineItem("Evaluación Técnica", "Realizada por Camilo", Icons.AutoMirrored.Filled.FactCheck, state == ServiceState.EVALUANDO, true)
-            TimelineItem("Ejecución del Servicio", "En proceso", Icons.Default.Construction, state != ServiceState.EVALUANDO, false)
+            TimelineItemLocal("Solicitud y Pago Base", "Completado", Icons.Default.CheckCircle, true, true)
+            TimelineItemLocal("Evaluación Técnica", "Realizada por el experto", Icons.AutoMirrored.Filled.FactCheck, state == ServiceState.EVALUANDO, true)
+            TimelineItemLocal("Ejecución del Servicio", "En proceso", Icons.Default.Construction, state != ServiceState.EVALUANDO, false)
         }
     }
 }
 
 @Composable
-fun TimelineItem(title: String, subtitle: String, icon: ImageVector, isActive: Boolean, showLine: Boolean) {
+fun TimelineItemLocal(title: String, subtitle: String, icon: ImageVector, isActive: Boolean, showLine: Boolean) {
     Row(modifier = Modifier.fillMaxWidth()) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(modifier = Modifier.size(32.dp).background(if (isActive) Color(0xFFDBEAFE) else Color(0xFFF1F5F9), CircleShape), contentAlignment = Alignment.Center) { Icon(icon, null, tint = if (isActive) Color(0xFF2563EB) else Color(0xFF94A3B8), modifier = Modifier.size(16.dp)) }
             if (showLine) { Box(modifier = Modifier.width(2.dp).height(24.dp).background(if (isActive) Color(0xFFDBEAFE) else Color(0xFFF1F5F9))) }
         }
         Spacer(modifier = Modifier.width(16.dp)); Column(modifier = Modifier.padding(top = 4.dp)) { Text(title, fontSize = 14.sp, fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium, color = if (isActive) Color(0xFF111827) else Color(0xFF94A3B8)); if (subtitle.isNotEmpty()) Text(subtitle, fontSize = 12.sp, color = Color.Gray); Spacer(modifier = Modifier.height(if (showLine) 20.dp else 0.dp)) }
+    }
+}
+
+@Composable
+fun PaymentMethodItemLocal(title: String, icon: ImageVector, isSelected: Boolean, onClick: () -> Unit) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = if (isSelected) Color(0xFFEFF6FF) else Color.White), border = BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) Color(0xFF2563EB) else Color(0xFFF3F4F6))) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(40.dp).background(if (isSelected) Color(0xFFDBEAFE) else Color(0xFFF1F5F9), RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) { Icon(icon, null, tint = if (isSelected) Color(0xFF2563EB) else Color.Gray) }
+            Spacer(modifier = Modifier.width(16.dp)); Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.weight(1f)); RadioButton(selected = isSelected, onClick = onClick)
+        }
     }
 }
 
