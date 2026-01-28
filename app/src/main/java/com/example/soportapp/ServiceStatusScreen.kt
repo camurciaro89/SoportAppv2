@@ -18,6 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,9 +27,9 @@ import kotlinx.coroutines.delay
 import java.text.NumberFormat
 import java.util.Locale
 
-// 1. DEFINICIONES DE ESTADOS Y MODELOS
+// 1. DEFINICIONES DE ESTADOS Y MODELOS (Esenciales para resolver los errores de compilación)
 enum class ServiceState {
-    EVALUANDO, EN_CAMINO, SOPORTE_REMOTO, EN_DIAGNOSTICO, FINALIZADO
+    EVALUANDO, REMOTO, SITIO, DIAGNOSTICO, FINALIZADO
 }
 
 data class StatusUiInfo(
@@ -60,7 +61,8 @@ fun ServiceStatusScreen(
 
     LaunchedEffect(Unit) {
         delay(5000) 
-        currentState = ServiceState.EN_DIAGNOSTICO 
+        // SIMULACIÓN: El técnico define que requiere visita en SITIO (residencia)
+        currentState = ServiceState.SITIO 
     }
 
     Scaffold(
@@ -80,13 +82,8 @@ fun ServiceStatusScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         },
-        // BOTÓN FIJO EN LA PARTE INFERIOR: COHERENCIA Y FACILIDAD DE USO
         bottomBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = Color.White,
-                shadowElevation = 12.dp
-            ) {
+            Surface(modifier = Modifier.fillMaxWidth(), color = Color.White, shadowElevation = 12.dp) {
                 Box(modifier = Modifier.padding(20.dp)) {
                     Button(
                         onClick = onFinish,
@@ -108,102 +105,38 @@ fun ServiceStatusScreen(
             ) {
                 item { Spacer(modifier = Modifier.height(8.dp)) }
 
-                item { StatusProgressCard(currentState, isExtraPaid, isSelfDelivery) }
+                item { StatusHeaderCard(currentState, isExtraPaid, isSelfDelivery) }
 
-                // CARD DE ACCIÓN REQUERIDA (Unificado a $30.000 para seriedad y honestidad)
-                if (!isExtraPaid && !isSelfDelivery && (currentState == ServiceState.EN_CAMINO || currentState == ServiceState.EN_DIAGNOSTICO)) {
-                    item {
-                        ActionRequiredCard(
-                            state = currentState,
-                            onPayClick = { showPaymentSheet = true },
-                            onSelfDeliveryClick = { isSelfDelivery = true }
+                item {
+                    when (currentState) {
+                        ServiceState.EVALUANDO -> EvaluationPendingCard()
+                        ServiceState.REMOTO -> RemoteDecisionCard()
+                        ServiceState.SITIO -> InSiteDecisionCard(isExtraPaid) { showPaymentSheet = true }
+                        ServiceState.DIAGNOSTICO -> DiagnosticDecisionCard(isExtraPaid, isSelfDelivery, 
+                            onPay = { showPaymentSheet = true }, 
+                            onSelf = { isSelfDelivery = true }
                         )
+                        else -> {}
                     }
                 }
 
-                if (isSelfDelivery && currentState == ServiceState.EN_DIAGNOSTICO) {
+                if (isSelfDelivery && currentState == ServiceState.DIAGNOSTICO) {
                     item { SelfDeliveryInfoCard() }
                 }
 
-                item { AssignedTechnicianCard(technician, currentState) }
-                item { TimelineCard(currentState) }
-                
+                item { AssignedTechnicianCard(technician) }
+                item { TimelineCard(currentState, isExtraPaid || isSelfDelivery) }
                 item { Spacer(modifier = Modifier.height(32.dp)) }
             }
 
-            // PASARELA DE PAGO INTEGRADA (Simulando Paso 6)
             if (showPaymentSheet) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = Color.Black.copy(alpha = 0.5f)
-                ) {
-                    Box(contentAlignment = Alignment.BottomCenter) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.75f),
-                            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White)
-                        ) {
-                            Column(modifier = Modifier.padding(24.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text("Confirmar pago adicional", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                                    IconButton(onClick = { showPaymentSheet = false }) {
-                                        Icon(Icons.Default.Close, null)
-                                    }
-                                }
-                                
-                                Spacer(modifier = Modifier.height(16.dp))
-                                
-                                if (isProcessingPayment) {
-                                    Column(
-                                        modifier = Modifier.fillMaxWidth().weight(1f),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center
-                                    ) {
-                                        CircularProgressIndicator(color = Color(0xFF2563EB))
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        Text("Procesando pago seguro...", color = Color.Gray)
-                                    }
-                                } else {
-                                    val amount = 30000 // TARIFA ÚNICA DE DESPLAZAMIENTO
-                                    Text("Valor a pagar: ${currencyFormatter.format(amount)}", fontSize = 22.sp, color = Color(0xFF2563EB), fontWeight = FontWeight.ExtraBold)
-                                    Text("Concepto: Traslado técnico especializado", fontSize = 14.sp, color = Color.Gray)
-                                    
-                                    Spacer(modifier = Modifier.height(24.dp))
-                                    
-                                    var selectedMethod by remember { mutableStateOf("nequi") }
-                                    PaymentMethodItemLocal(
-                                        title = "Nequi / Daviplata",
-                                        icon = Icons.Default.QrCodeScanner,
-                                        isSelected = selectedMethod == "nequi",
-                                        onClick = { selectedMethod = "nequi" }
-                                    )
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    PaymentMethodItemLocal(
-                                        title = "Tarjeta / PSE",
-                                        icon = Icons.Default.CreditCard,
-                                        isSelected = selectedMethod == "card",
-                                        onClick = { selectedMethod = "card" }
-                                    )
-                                    
-                                    Spacer(modifier = Modifier.weight(1f))
-                                    
-                                    Button(
-                                        onClick = { isProcessingPayment = true },
-                                        modifier = Modifier.fillMaxWidth().height(60.dp),
-                                        shape = RoundedCornerShape(16.dp),
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A))
-                                    ) {
-                                        Text("Confirmar Pago de $30.000", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                PaymentBottomSheetLocal(
+                    amount = 30000,
+                    isProcessing = isProcessingPayment,
+                    onConfirm = { isProcessingPayment = true },
+                    onClose = { showPaymentSheet = false },
+                    currencyFormatter = currencyFormatter
+                )
                 
                 if (isProcessingPayment) {
                     LaunchedEffect(Unit) {
@@ -219,42 +152,70 @@ fun ServiceStatusScreen(
 }
 
 @Composable
-fun ActionRequiredCard(state: ServiceState, onPayClick: () -> Unit, onSelfDeliveryClick: () -> Unit) {
+fun StatusHeaderCard(state: ServiceState, isPaid: Boolean, isSelf: Boolean) {
+    val config = when (state) {
+        ServiceState.EVALUANDO -> Triple("Evaluando tu caso", Color.Gray, Icons.Default.Search)
+        ServiceState.REMOTO -> Triple("Solución Remota", Color(0xFF7C3AED), Icons.Default.Devices)
+        ServiceState.SITIO -> Triple(if (isPaid) "Visita Confirmada" else "Servicio en Sitio", Color(0xFF16A34A), Icons.Default.LocationOn)
+        ServiceState.DIAGNOSTICO -> Triple(if (isPaid || isSelf) "Laboratorio en curso" else "Centro Diagnóstico", Color(0xFF2563EB), Icons.Default.Apartment)
+        else -> Triple("Finalizado", Color.Gray, Icons.Default.Check)
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7ED)),
-        border = BorderStroke(1.dp, Color(0xFFFED7AA))
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, config.second.copy(alpha = 0.2f))
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Payments, null, tint = Color(0xFFEA580C))
-                Spacer(modifier = Modifier.width(12.dp))
-                Text("Acción requerida", fontWeight = FontWeight.Bold, color = Color(0xFF9A3412))
+        Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(48.dp).background(config.second.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) {
+                Icon(config.third, null, tint = config.second)
             }
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = if (state == ServiceState.EN_DIAGNOSTICO) "El técnico sugiere traslado al laboratorio. Elige una opción:" else "El técnico debe desplazarse a tu ubicación para continuar.",
-                fontSize = 14.sp, color = Color(0xFF9A3412), lineHeight = 20.sp
-            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(config.first, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = config.second)
+                Text("Actualizado ahora", fontSize = 12.sp, color = Color.Gray)
+            }
+        }
+    }
+}
+
+@Composable
+fun EvaluationPendingCard() {
+    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+        Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 3.dp, color = Color.Gray)
             Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = onPayClick, 
-                modifier = Modifier.fillMaxWidth().height(52.dp), 
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEA580C)),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text("Pagar traslado o recogida ($30.000)", fontWeight = FontWeight.Bold)
-            }
-            if (state == ServiceState.EN_DIAGNOSTICO) {
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedButton(
-                    onClick = onSelfDeliveryClick, 
-                    modifier = Modifier.fillMaxWidth().height(52.dp), 
-                    border = BorderStroke(1.dp, Color(0xFFEA580C)),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Yo lo llevo personalmente ($0)", color = Color(0xFFEA580C), fontWeight = FontWeight.SemiBold)
+            Text("Un experto está analizando tu falla para definir la mejor solución técnica.", textAlign = TextAlign.Center, fontSize = 15.sp, color = Color.DarkGray)
+        }
+    }
+}
+
+@Composable
+fun RemoteDecisionCard() {
+    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F3FF)), border = BorderStroke(1.dp, Color(0xFFDDD6FE))) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text("¡Buenas noticias!", fontWeight = FontWeight.Bold, color = Color(0xFF7C3AED), fontSize = 16.sp)
+            Text("Tu falla puede solucionarse remotamente sin costo adicional.", fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("En breve, el técnico te llamará al número registrado para iniciar la conexión en la hora solicitada.", fontSize = 14.sp, color = Color.DarkGray, lineHeight = 20.sp)
+        }
+    }
+}
+
+@Composable
+fun InSiteDecisionCard(isPaid: Boolean, onPay: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = if (isPaid) Color(0xFFF0FDF4) else Color(0xFFFFFBEB)), border = BorderStroke(1.dp, if (isPaid) Color(0xFFDCFCE7) else Color(0xFFFEF3C7))) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            if (isPaid) {
+                Text("Traslado confirmado", fontWeight = FontWeight.Bold, color = Color(0xFF16A34A))
+                Text("El técnico te llamará en minutos para confirmar la cita presencial.", fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
+            } else {
+                Text("Visita requerida", fontWeight = FontWeight.Bold, color = Color(0xFFB45309))
+                Text("El técnico debe desplazarse a tu ubicación.", fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(onClick = onPay, modifier = Modifier.fillMaxWidth().height(52.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)), shape = RoundedCornerShape(8.dp)) {
+                    Text("Pagar traslado ($30.000)", fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -262,21 +223,23 @@ fun ActionRequiredCard(state: ServiceState, onPayClick: () -> Unit, onSelfDelive
 }
 
 @Composable
-fun StatusProgressCard(state: ServiceState, isExtraPaid: Boolean, isSelfDelivery: Boolean) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFF3F4F6))) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.size(48.dp).background(Color(0xFFF1F5F9), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) { Icon(if (state == ServiceState.EN_CAMINO) Icons.Default.DirectionsCar else Icons.AutoMirrored.Filled.FactCheck, null, tint = Color(0xFF2563EB)) }
-                Spacer(modifier = Modifier.width(16.dp)); Column { 
-                    val title = when(state) {
-                        ServiceState.EVALUANDO -> "Evaluando tu caso"
-                        ServiceState.EN_CAMINO -> if (isExtraPaid) "Técnico en camino" else "Esperando pago"
-                        ServiceState.EN_DIAGNOSTICO -> if (isExtraPaid) "Recolección en curso" else if (isSelfDelivery) "Esperando entrega" else "Acción requerida"
-                        else -> "Servicio activo"
-                    }
-                    Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Text("Estado: ${state.name.lowercase().replaceFirstChar { it.uppercase() }}", fontSize = 14.sp, color = Color.Gray) 
-                }
+fun DiagnosticDecisionCard(isPaid: Boolean, isSelf: Boolean, onPay: () -> Unit, onSelf: () -> Unit) {
+    if (isPaid) {
+        Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)), border = BorderStroke(1.dp, Color(0xFFDCFCE7))) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text("Recogida programada", fontWeight = FontWeight.Bold, color = Color(0xFF16A34A))
+                Text("El experto pasará por tu equipo pronto.", fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
+            }
+        }
+    } else if (!isSelf) {
+        Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF)), border = BorderStroke(1.dp, Color(0xFFDBEAFE))) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text("Requiere Laboratorio", fontWeight = FontWeight.Bold, color = Color(0xFF2563EB))
+                Text("Tu equipo necesita herramientas de nuestro centro especializado.", fontSize = 14.sp)
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(onClick = onPay, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(8.dp)) { Text("Pagar recogida ($30.000)", fontWeight = FontWeight.Bold) }
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(onClick = onSelf, modifier = Modifier.fillMaxWidth().height(52.dp), border = BorderStroke(1.dp, Color(0xFF2563EB)), shape = RoundedCornerShape(8.dp)) { Text("Yo lo llevo personalmente ($0)", color = Color(0xFF2563EB), fontWeight = FontWeight.Bold) }
             }
         }
     }
@@ -284,56 +247,129 @@ fun StatusProgressCard(state: ServiceState, isExtraPaid: Boolean, isSelfDelivery
 
 @Composable
 fun SelfDeliveryInfoCard() {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)), border = BorderStroke(1.dp, Color(0xFFDCFCE7))) {
+    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)), border = BorderStroke(1.dp, Color(0xFFDCFCE7))) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Store, null, tint = Color(0xFF16A34A)); Spacer(modifier = Modifier.width(12.dp)); Text("Punto de entrega", fontWeight = FontWeight.Bold, color = Color(0xFF166534)) }
-            Spacer(modifier = Modifier.height(8.dp)); Text("Calle 123 #45-67, Bogotá", fontSize = 14.sp, fontWeight = FontWeight.SemiBold); Text("Horario: Lun-Vie 8:00 AM - 6:00 PM", fontSize = 12.sp, color = Color.Gray); Text("ID de servicio: #ST-9921", fontSize = 12.sp, color = Color(0xFF166534), fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Store, null, tint = Color(0xFF16A34A))
+                Spacer(modifier = Modifier.width(12.dp))
+                Text("Punto de entrega", fontWeight = FontWeight.Bold, color = Color(0xFF166534))
+            }
+            Text("Calle 123 #45-67, Edificio Tech, Cali.", fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp), fontWeight = FontWeight.Medium)
+            Text("ID: #ST-9921", fontSize = 12.sp, color = Color.Gray)
         }
     }
 }
 
 @Composable
-fun AssignedTechnicianCard(technician: Technician, state: ServiceState) {
+fun AssignedTechnicianCard(technician: Technician) {
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFF3F4F6))) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text("Técnico experto", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(bottom = 12.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.size(56.dp).background(Color(0xFFF1F5F9), CircleShape).clip(CircleShape), contentAlignment = Alignment.Center) { Icon(Icons.Default.Person, null, modifier = Modifier.size(32.dp), tint = Color(0xFF94A3B8)) }
-                Spacer(modifier = Modifier.width(16.dp)); Column { Text(technician.name, fontSize = 16.sp, fontWeight = FontWeight.Bold); Text("Andrés te atenderá", fontSize = 12.sp, color = Color(0xFF2563EB)) }
+        Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(56.dp).background(Color(0xFFF1F5F9), CircleShape).clip(CircleShape), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.Person, null, tint = Color.LightGray, modifier = Modifier.size(32.dp))
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(technician.name, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("Técnico asignado", fontSize = 12.sp, color = Color(0xFF2563EB))
             }
         }
     }
 }
 
 @Composable
-fun TimelineCard(state: ServiceState) {
+fun TimelineCard(state: ServiceState, actionDone: Boolean) {
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFF3F4F6))) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text("Evolución", fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 20.dp))
-            TimelineItemLocal("Solicitud y Pago Base", "Completado", Icons.Default.CheckCircle, true, true)
-            TimelineItemLocal("Evaluación Técnica", "Realizada por el experto", Icons.AutoMirrored.Filled.FactCheck, state == ServiceState.EVALUANDO, true)
-            TimelineItemLocal("Ejecución del Servicio", "En proceso", Icons.Default.Construction, state != ServiceState.EVALUANDO, false)
+            Text("Estado del proceso", fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 16.dp))
+            TimelineItemLocal("Pago base recibido", true, true)
+            TimelineItemLocal("Evaluación técnica", state != ServiceState.EVALUANDO, true)
+            TimelineItemLocal("Ejecución del servicio", actionDone || state == ServiceState.REMOTO, false)
         }
     }
 }
 
 @Composable
-fun TimelineItemLocal(title: String, subtitle: String, icon: ImageVector, isActive: Boolean, showLine: Boolean) {
-    Row(modifier = Modifier.fillMaxWidth()) {
+fun TimelineItemLocal(text: String, isDone: Boolean, showLine: Boolean) {
+    Row {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(modifier = Modifier.size(32.dp).background(if (isActive) Color(0xFFDBEAFE) else Color(0xFFF1F5F9), CircleShape), contentAlignment = Alignment.Center) { Icon(icon, null, tint = if (isActive) Color(0xFF2563EB) else Color(0xFF94A3B8), modifier = Modifier.size(16.dp)) }
-            if (showLine) { Box(modifier = Modifier.width(2.dp).height(24.dp).background(if (isActive) Color(0xFFDBEAFE) else Color(0xFFF1F5F9))) }
+            Icon(if (isDone) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked, null, tint = if (isDone) Color(0xFF16A34A) else Color.LightGray, modifier = Modifier.size(20.dp))
+            if (showLine) Box(modifier = Modifier.width(2.dp).height(24.dp).background(Color.LightGray.copy(alpha = 0.5f)))
         }
-        Spacer(modifier = Modifier.width(16.dp)); Column(modifier = Modifier.padding(top = 4.dp)) { Text(title, fontSize = 14.sp, fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium, color = if (isActive) Color(0xFF111827) else Color(0xFF94A3B8)); if (subtitle.isNotEmpty()) Text(subtitle, fontSize = 12.sp, color = Color.Gray); Spacer(modifier = Modifier.height(if (showLine) 20.dp else 0.dp)) }
+        Text(text, fontSize = 14.sp, color = if (isDone) Color.Black else Color.Gray, modifier = Modifier.padding(start = 12.dp, top = 2.dp))
     }
 }
 
 @Composable
-fun PaymentMethodItemLocal(title: String, icon: ImageVector, isSelected: Boolean, onClick: () -> Unit) {
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = if (isSelected) Color(0xFFEFF6FF) else Color.White), border = BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) Color(0xFF2563EB) else Color(0xFFF3F4F6))) {
+fun PaymentBottomSheetLocal(amount: Int, isProcessing: Boolean, onConfirm: () -> Unit, onClose: () -> Unit, currencyFormatter: NumberFormat) {
+    var selectedMethod by remember { mutableStateOf("qr") }
+
+    Surface(modifier = Modifier.fillMaxSize(), color = Color.Black.copy(alpha = 0.6f)) {
+        Box(contentAlignment = Alignment.BottomCenter) {
+            Card(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.85f), shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+                Column(modifier = Modifier.padding(24.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text("Confirmar pago adicional", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        IconButton(onClick = onClose) { Icon(Icons.Default.Close, null) }
+                    }
+                    if (isProcessing) {
+                        Column(modifier = Modifier.fillMaxSize().weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                            CircularProgressIndicator(color = Color(0xFF2563EB), strokeWidth = 6.dp)
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Text("Verificando pago seguro...", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            Text("Conectando con tu entidad bancaria.", color = Color.Gray)
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Text("Valor a pagar: ${currencyFormatter.format(amount)}", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF2563EB))
+                        Text("Concepto: Traslado técnico especializado", color = Color.Gray, fontSize = 14.sp)
+                        
+                        Spacer(modifier = Modifier.height(32.dp))
+                        Text("Selecciona tu opción de pago", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        PaymentMethodOption(
+                            title = "QR Bancolombia / Nequi",
+                            subtitle = "Pago rápido desde tu celular",
+                            icon = Icons.Default.QrCodeScanner,
+                            isSelected = selectedMethod == "qr",
+                            onClick = { selectedMethod = "qr" }
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        PaymentMethodOption(
+                            title = "PSE / Tarjetas (Wompi)",
+                            subtitle = "Pago seguro con respaldo bancario",
+                            icon = Icons.Default.VerifiedUser,
+                            isSelected = selectedMethod == "wompi",
+                            onClick = { selectedMethod = "wompi" }
+                        )
+
+                        Spacer(modifier = Modifier.weight(1f))
+
+                        Button(onClick = onConfirm, modifier = Modifier.fillMaxWidth().height(60.dp), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A))) {
+                            Text("Realizar pago seguro", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PaymentMethodOption(title: String, subtitle: String, icon: ImageVector, isSelected: Boolean, onClick: () -> Unit) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = if (isSelected) Color(0xFFEFF6FF) else Color.White), border = BorderStroke(width = if (isSelected) 2.dp else 1.dp, color = if (isSelected) Color(0xFF2563EB) else Color(0xFFE5E7EB))) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(40.dp).background(if (isSelected) Color(0xFFDBEAFE) else Color(0xFFF1F5F9), RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) { Icon(icon, null, tint = if (isSelected) Color(0xFF2563EB) else Color.Gray) }
-            Spacer(modifier = Modifier.width(16.dp)); Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.weight(1f)); RadioButton(selected = isSelected, onClick = onClick)
+            Box(modifier = Modifier.size(48.dp).background(if (isSelected) Color(0xFFDBEAFE) else Color(0xFFF1F5F9), RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
+                Icon(icon, null, tint = if (isSelected) Color(0xFF2563EB) else Color.Gray)
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text(subtitle, fontSize = 12.sp, color = Color.Gray)
+            }
+            RadioButton(selected = isSelected, onClick = onClick)
         }
     }
 }

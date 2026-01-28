@@ -30,7 +30,7 @@ fun PaymentScreen(
     onPaymentSuccess: () -> Unit,
     onBack: () -> Unit
 ) {
-    var selectedMethod by remember { mutableStateOf("nequi") }
+    var selectedMethod by remember { mutableStateOf("qr") }
     var isProcessing by remember { mutableStateOf(false) }
     
     val localeCO = Locale.forLanguageTag("es-CO")
@@ -38,10 +38,9 @@ fun PaymentScreen(
         maximumFractionDigits = 0
     }
 
-    // Simulación de procesamiento para dar seriedad
     if (isProcessing) {
         LaunchedEffect(Unit) {
-            delay(2500) // Tiempo de "verificación bancaria" simulada
+            delay(2500)
             onPaymentSuccess()
         }
     }
@@ -77,13 +76,13 @@ fun PaymentScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
-                    text = "Resumen de tu solicitud",
+                    text = "Resumen de solicitud",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF111827)
                 )
                 Text(
-                    text = "Este pago inicial garantiza el compromiso del técnico para tu evaluación.",
+                    text = "Este pago garantiza el diagnóstico profesional de tu equipo.",
                     fontSize = 15.sp,
                     color = Color.DarkGray,
                     modifier = Modifier.padding(top = 4.dp)
@@ -91,7 +90,6 @@ fun PaymentScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Card de Precio Transparente
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
@@ -115,38 +113,39 @@ fun PaymentScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                Text("Método de pago preferido", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("Selecciona tu opción de pago", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(12.dp))
 
                 PaymentMethodItem(
-                    title = "Nequi / Daviplata",
+                    title = "QR Bancolombia / Nequi",
+                    subtitle = "Pago rápido desde tu celular",
                     icon = Icons.Default.QrCodeScanner,
-                    isSelected = selectedMethod == "nequi",
-                    onClick = { selectedMethod = "nequi" }
+                    isSelected = selectedMethod == "qr",
+                    onClick = { selectedMethod = "qr" }
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 PaymentMethodItem(
-                    title = "Tarjeta de Crédito / PSE",
-                    icon = Icons.Default.CreditCard,
-                    isSelected = selectedMethod == "card",
-                    onClick = { selectedMethod = "card" }
+                    title = "PSE / Tarjetas (Wompi)",
+                    subtitle = "Pago seguro con respaldo bancario",
+                    icon = Icons.Default.VerifiedUser,
+                    isSelected = selectedMethod == "wompi",
+                    onClick = { selectedMethod = "wompi" }
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // NOTA DE HONESTIDAD Y RESPALDO
                 Card(
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)),
                     shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(1.dp, Color(0xFFDCFCE7))
                 ) {
                     Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.VerifiedUser, null, tint = Color(0xFF16A34A), modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.Lock, null, tint = Color(0xFF16A34A), modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = "Tu dinero está seguro. Si no podemos iniciar el servicio por razones técnicas, se realizará la devolución total.",
+                            text = "Tu dinero está protegido. En caso de no poder iniciar el servicio, se realizará la devolución total.",
                             fontSize = 12.sp,
                             color = Color(0xFF166534),
                             lineHeight = 16.sp
@@ -162,7 +161,7 @@ fun PaymentScreen(
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A))
                 ) {
-                    Text("Pagar y continuar", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("Realizar pago seguro", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
                 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -185,13 +184,13 @@ fun ProcessingView() {
         )
         Spacer(modifier = Modifier.height(32.dp))
         Text(
-            text = "Verificando transacción...",
+            text = "Conectando con el banco...",
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             color = Color(0xFF111827)
         )
         Text(
-            text = "Estamos conectando con tu entidad bancaria de forma segura.",
+            text = "Estamos verificando tu transacción de forma segura.",
             fontSize = 15.sp,
             color = Color.Gray,
             textAlign = TextAlign.Center,
@@ -203,6 +202,7 @@ fun ProcessingView() {
 @Composable
 fun PaymentMethodItem(
     title: String,
+    subtitle: String,
     icon: ImageVector,
     isSelected: Boolean,
     onClick: () -> Unit
@@ -219,7 +219,10 @@ fun PaymentMethodItem(
                 Icon(icon, null, tint = if (isSelected) Color(0xFF2563EB) else Color.Gray)
             }
             Spacer(modifier = Modifier.width(16.dp))
-            Text(text = title, fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(text = subtitle, fontSize = 12.sp, color = Color.Gray)
+            }
             RadioButton(selected = isSelected, onClick = onClick)
         }
     }

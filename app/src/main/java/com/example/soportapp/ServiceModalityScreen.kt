@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Apartment
 import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -18,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,118 +33,87 @@ fun ServiceModalityScreen(
 ) {
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text("Modalidad del servicio", fontSize = 16.sp)
-                        Text("Paso 4 de 10", fontSize = 12.sp, color = Color.Gray)
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+            SoportAppComponents.StepTopAppBar(
+                title = "Modalidades de soporte",
+                currentStep = 4,
+                totalSteps = 10,
+                onBack = onBack
             )
         },
-        containerColor = Color.White
+        containerColor = Color(0xFFF9FAFB) // Fondo coherente con toda la App
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
                 .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Box(
-                    modifier = Modifier
-                        .size(72.dp)
-                        .background(Color(0xFFE0F2FE), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.LocationOn,
-                        contentDescription = null,
-                        tint = Color(0xFF2563EB),
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
+                Spacer(modifier = Modifier.height(24.dp))
                 Text(
-                    text = "Evaluación inicial",
-                    fontSize = 20.sp,
+                    text = "Cómo resolvemos tu falla",
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827),
-                    modifier = Modifier.fillMaxWidth()
+                    color = Color(0xFF111827)
                 )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
                 Text(
-                    text = "Determinaremos la mejor modalidad para tu servicio.",
-                    fontSize = 15.sp,
-                    color = Color.Gray,
-                    modifier = Modifier.fillMaxWidth()
+                    text = "Tras el pago base, un experto evaluará tu caso y definirá la ruta más eficiente:",
+                    fontSize = 16.sp,
+                    color = Color.DarkGray,
+                    modifier = Modifier.padding(top = 8.dp),
+                    lineHeight = 22.sp
                 )
-
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
             }
 
+            // MODALIDAD 1: REMOTO (MORADO - TECNOLOGÍA)
             item {
-                ModalityCard(
+                ModalityInfoCard(
                     icon = Icons.Default.Devices,
-                    iconColor = Color(0xFF7C3AED),
-                    iconBg = Color(0xFFEDE9FE),
-                    title = "Soporte remoto en línea",
-                    description = "Atención rápida para software y configuración, sin salir de casa."
+                    title = "Soporte Remoto",
+                    description = "Conexión segura vía internet para fallas de software, virus o configuración. Es la opción más rápida.",
+                    accentColor = Color(0xFF7C3AED), // Violeta
+                    bgTint = Color(0xFFF5F3FF)
                 )
             }
 
+            // MODALIDAD 2: EN SITIO (VERDE - CONFIANZA)
             item {
-                ModalityCard(
+                ModalityInfoCard(
                     icon = Icons.Default.LocationOn,
-                    iconColor = Color(0xFF16A34A),
-                    iconBg = Color(0xFFDCFCE7),
-                    title = "Servicio en sitio",
-                    description = "Solucionamos el problema directamente en tu ubicación."
+                    title = "Servicio en Sitio",
+                    description = "El técnico se desplaza a tu ubicación para reparaciones físicas o cuando el internet no funciona.",
+                    accentColor = Color(0xFF16A34A), // Esmeralda
+                    bgTint = Color(0xFFF0FDF4)
                 )
             }
 
+            // MODALIDAD 3: LABORATORIO (AZUL - RESPALDO)
             item {
-                ModalityCard(
+                ModalityInfoCard(
                     icon = Icons.Default.Apartment,
-                    iconColor = Color(0xFF2563EB),
-                    iconBg = Color(0xFFDBEAFE),
                     title = "Centro de Diagnóstico",
-                    description = "Para reparaciones complejas que requieren equipos especializados."
+                    description = "Para casos de alta complejidad que requieren herramientas de laboratorio y micro-soldadura.",
+                    accentColor = Color(0xFF2563EB), // Cobalto
+                    bgTint = Color(0xFFEFF6FF)
                 )
             }
 
+            // NOTA DE TRANSPARENCIA
             item {
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF)),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    border = BorderStroke(1.dp, Color(0xFFE5E7EB))
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Info, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = "Centro de Diagnóstico AP320 Tech",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E40AF)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Nuestro centro cuenta con herramientas y equipos especializados para diagnósticos avanzados y reparaciones complejas.",
+                            text = "Nota: El desplazamiento o la recogida tienen un costo adicional de $30.000 que se abona en el Paso 9.",
                             fontSize = 13.sp,
-                            color = Color(0xFF1E40AF),
+                            color = Color.Gray,
                             lineHeight = 18.sp
                         )
                     }
@@ -154,63 +125,63 @@ fun ServiceModalityScreen(
                     onClick = onContinue,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                        .height(52.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
-                    shape = RoundedCornerShape(8.dp)
+                        .height(60.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A))
                 ) {
-                    Text("Entendido, continuar", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("Entendido, continuar", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }
 }
 
 @Composable
-fun ModalityCard(
+fun ModalityInfoCard(
     icon: ImageVector,
-    iconColor: Color,
-    iconBg: Color,
     title: String,
-    description: String
+    description: String,
+    accentColor: Color,
+    bgTint: Color
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(1.dp, Color(0xFFF3F4F6))
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.padding(20.dp),
+            verticalAlignment = Alignment.Top
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .background(iconBg, RoundedCornerShape(10.dp)),
+                    .size(56.dp)
+                    .background(bgTint, RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = iconColor,
-                    modifier = Modifier.size(20.dp)
+                    tint = accentColor,
+                    modifier = Modifier.size(28.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(16.dp))
             Column {
                 Text(
                     text = title,
-                    fontSize = 14.sp,
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF374151)
+                    color = accentColor
                 )
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = description,
-                    fontSize = 12.sp,
-                    color = Color.Gray,
-                    lineHeight = 16.sp
+                    fontSize = 14.sp,
+                    color = Color.DarkGray,
+                    lineHeight = 20.sp
                 )
             }
         }
