@@ -27,9 +27,19 @@ import kotlinx.coroutines.delay
 import java.text.NumberFormat
 import java.util.Locale
 
+// 1. DEFINICIONES DE ESTADOS Y MODELOS
 enum class ServiceState {
     EVALUANDO, REMOTO, SITIO, DIAGNOSTICO
 }
+
+data class StatusUiInfo(
+    val title: String,
+    val subtitle: String,
+    val icon: ImageVector,
+    val iconBg: Color,
+    val iconTint: Color,
+    val progress: Float
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,10 +48,10 @@ fun ServiceStatusScreen(
     onBack: () -> Unit,
     onFinish: () -> Unit
 ) {
-    var currentState by remember { mutableStateOf(ServiceState.EVALUANDO) }
+    var currentState by remember { mutableStateOf<ServiceState>(ServiceState.EVALUANDO) }
+    var showPaymentSheet by remember { mutableStateOf(false) }
     var isExtraPaid by remember { mutableStateOf(false) }
     var isSelfDelivery by remember { mutableStateOf(false) }
-    var showPaymentSheet by remember { mutableStateOf(false) }
     var isProcessingPayment by remember { mutableStateOf(false) }
     
     val localeCO = Locale.forLanguageTag("es-CO")
@@ -50,7 +60,7 @@ fun ServiceStatusScreen(
     }
 
     LaunchedEffect(Unit) {
-        delay(4000) 
+        delay(5000) 
         currentState = ServiceState.SITIO 
     }
 
@@ -80,7 +90,7 @@ fun ServiceStatusScreen(
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A))
                     ) {
-                        Text("Finalizar y calificar", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text("Finalizar servicio y calificar", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -114,7 +124,7 @@ fun ServiceStatusScreen(
 
                 item { AssignedTechnicianCardLocal(technician) }
                 item { TimelineCardLocal(currentState, isExtraPaid || isSelfDelivery) }
-                item { Spacer(modifier = Modifier.height(20.dp)) }
+                item { Spacer(modifier = Modifier.height(32.dp)) }
             }
 
             if (showPaymentSheet) {
@@ -172,13 +182,13 @@ fun RemoteDecisionCardLocal() {
 @Composable
 fun InSiteDecisionCardLocal(isPaid: Boolean, onPay: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = if (isPaid) Color(0xFFF0FDF4) else Color(0xFFFFFBEB)), border = BorderStroke(1.dp, if (isPaid) Color(0xFFDCFCE7) else Color(0xFFFEF3C7))) {
-        Column(modifier = Modifier.padding(20.dp)) { if (isPaid) { Text("Traslado confirmado", fontWeight = FontWeight.Bold, color = Color(0xFF16A34A)); Text("El técnico te llamará en minutos para confirmar la cita presencial.", fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp)) } else { Text("Visita requerida", fontWeight = FontWeight.Bold, color = Color(0xFFB45309)); Text("El técnico debe desplazarse a tu ubicación.", fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp)); Spacer(modifier = Modifier.height(16.dp)); Button(onClick = onPay, modifier = Modifier.fillMaxWidth().height(52.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)), shape = RoundedCornerShape(8.dp)) { Text("Pagar traslado ($30.000)", fontWeight = FontWeight.Bold) } } }
+        Column(modifier = Modifier.padding(20.dp)) { if (isPaid) { Text("Traslado confirmado", fontWeight = FontWeight.Bold, color = Color(0xFF16A34A)); Text("El técnico te llamará en minutos para confirmar la cita presencial.", fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp)) } else { Text("Visita requerida", fontWeight = FontWeight.Bold, color = Color(0xFFB45309)); Text("El técnico debe desplazarse a tu ubicación.", fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp)); Spacer(modifier = Modifier.height(16.dp)); Button(onClick = onPay, modifier = Modifier.fillMaxWidth().height(52.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)), shape = RoundedCornerShape(12.dp)) { Text("Pagar traslado ($30.000)", fontWeight = FontWeight.Bold) } } }
     }
 }
 
 @Composable
 fun DiagnosticDecisionCardLocal(isPaid: Boolean, isSelf: Boolean, onPay: () -> Unit, onSelf: () -> Unit) {
-    if (isPaid) { Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)), border = BorderStroke(1.dp, Color(0xFFDCFCE7))) { Column(modifier = Modifier.padding(20.dp)) { Text("Recogida programada", fontWeight = FontWeight.Bold, color = Color(0xFF16A34A)); Text("El experto pasará por tu equipo pronto.", fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp)) } } } else if (!isSelf) { Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF)), border = BorderStroke(1.dp, Color(0xFFDBEAFE))) { Column(modifier = Modifier.padding(20.dp)) { Text("Requiere Laboratorio", fontWeight = FontWeight.Bold, color = Color(0xFF2563EB)); Text("Tu equipo necesita herramientas de nuestro centro especializado.", fontSize = 14.sp); Spacer(modifier = Modifier.height(16.dp)); Button(onClick = onPay, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(8.dp)) { Text("Pagar recogida ($30.000)", fontWeight = FontWeight.Bold) }; Spacer(modifier = Modifier.height(12.dp)); OutlinedButton(onClick = onSelf, modifier = Modifier.fillMaxWidth().height(52.dp), border = BorderStroke(1.dp, Color(0xFF2563EB)), shape = RoundedCornerShape(8.dp)) { Text("Yo lo llevo personalmente ($0)", color = Color(0xFF2563EB), fontWeight = FontWeight.Bold) } } } }
+    if (isPaid) { Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)), border = BorderStroke(1.dp, Color(0xFFDCFCE7))) { Column(modifier = Modifier.padding(20.dp)) { Text("Recogida programada", fontWeight = FontWeight.Bold, color = Color(0xFF16A34A)); Text("El experto pasará por tu equipo pronto.", fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp)) } } } else if (!isSelf) { Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF)), border = BorderStroke(1.dp, Color(0xFFDBEAFE))) { Column(modifier = Modifier.padding(20.dp)) { Text("Requiere Laboratorio", fontWeight = FontWeight.Bold, color = Color(0xFF2563EB)); Text("Tu equipo necesita herramientas de nuestro centro especializado.", fontSize = 14.sp); Spacer(modifier = Modifier.height(16.dp)); Button(onClick = onPay, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(12.dp)) { Text("Pagar recogida ($30.000)", fontWeight = FontWeight.Bold) }; Spacer(modifier = Modifier.height(12.dp)); OutlinedButton(onClick = onSelf, modifier = Modifier.fillMaxWidth().height(52.dp), border = BorderStroke(1.dp, Color(0xFF2563EB)), shape = RoundedCornerShape(12.dp)) { Text("Yo lo llevo personalmente ($0)", color = Color(0xFF2563EB), fontWeight = FontWeight.Bold) } } } }
 }
 
 @Composable
