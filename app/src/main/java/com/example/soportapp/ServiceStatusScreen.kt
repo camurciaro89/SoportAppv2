@@ -8,7 +8,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.FactCheck
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -17,42 +16,46 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.soportapp.data.database.SupportRequest
 import com.example.soportapp.ui.theme.SoportAppTheme
+import com.example.soportapp.ui.viewmodel.ServiceStatusUiState
+import com.example.soportapp.ui.viewmodel.ServiceStatusViewModel
+import com.example.soportapp.ui.viewmodel.ServiceStatusViewModelFactory
 import kotlinx.coroutines.delay
 import java.text.NumberFormat
 import java.util.Locale
 
-// 1. DEFINICIONES DE ESTADOS Y MODELOS
-enum class ServiceState {
-    EVALUANDO, REMOTO, SITIO, DIAGNOSTICO
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ServiceStatusScreen(
+    supportRequestId: Long,
     technician: Technician,
     onBack: () -> Unit,
     onFinish: () -> Unit
 ) {
-    var currentState by remember { mutableStateOf<ServiceState>(ServiceState.EVALUANDO) }
+    val application = LocalContext.current.applicationContext as SoportApplication
+    val viewModel: ServiceStatusViewModel = viewModel(
+        factory = ServiceStatusViewModelFactory(application.container.soportAppRepository)
+    )
+    val uiState by viewModel.uiState.collectAsState()
+
     var showPaymentSheet by remember { mutableStateOf(false) }
-    var isExtraPaid by remember { mutableStateOf(false) }
-    var isSelfDelivery by remember { mutableStateOf(false) }
     var isProcessingPayment by remember { mutableStateOf(false) }
-    
+
     val localeCO = Locale.forLanguageTag("es-CO")
     val currencyFormatter = NumberFormat.getCurrencyInstance(localeCO).apply {
         maximumFractionDigits = 0
     }
 
-    LaunchedEffect(Unit) {
-        delay(5000) 
-        currentState = ServiceState.SITIO 
+    LaunchedEffect(supportRequestId) {
+        viewModel.loadRequest(supportRequestId)
     }
 
     Scaffold(
@@ -89,33 +92,32 @@ fun ServiceStatusScreen(
         containerColor = Color(0xFFF9FAFB)
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                item { Spacer(modifier = Modifier.height(8.dp)) }
+            when (val state = uiState) {
+                is ServiceStatusUiState.Loading -> {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                }
+                is ServiceStatusUiState.Error -> {
+                    Text(text = state.message, modifier = Modifier.align(Alignment.Center))
+                }
+                is ServiceStatusUiState.Success -> {
+                    val request = state.request
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        item { Spacer(modifier = Modifier.height(8.dp)) }
 
-                item { StatusHeaderCardLocal(currentState, isExtraPaid, isSelfDelivery) }
+                        item { StatusHeaderCardLocal(request) }
 
-                item {
-                    when (currentState) {
-                        ServiceState.EVALUANDO -> EvaluationPendingCardLocal()
-                        ServiceState.REMOTO -> RemoteDecisionCardLocal()
-                        ServiceState.SITIO -> InSiteDecisionCardLocal(isExtraPaid) { showPaymentSheet = true }
-                        ServiceState.DIAGNOSTICO -> DiagnosticDecisionCardLocal(isExtraPaid, isSelfDelivery, 
-                            onPay = { showPaymentSheet = true }, 
-                            onSelf = { isSelfDelivery = true }
-                        )
+                        item {
+                            EvaluationPendingCardLocal()
+                        }
+
+                        item { AssignedTechnicianCardLocal(technician) }
+                        item { TimelineCardLocal(request) }
+                        item { Spacer(modifier = Modifier.height(32.dp)) }
                     }
                 }
-
-                if (isSelfDelivery && currentState == ServiceState.DIAGNOSTICO) {
-                    item { SelfDeliveryInfoCardLocal() }
-                }
-
-                item { AssignedTechnicianCardLocal(technician) }
-                item { TimelineCardLocal(currentState, isExtraPaid || isSelfDelivery) }
-                item { Spacer(modifier = Modifier.height(32.dp)) }
             }
 
             if (showPaymentSheet) {
@@ -126,11 +128,11 @@ fun ServiceStatusScreen(
                     onClose = { showPaymentSheet = false },
                     currencyFormatter = currencyFormatter
                 )
-                
+
                 if (isProcessingPayment) {
                     LaunchedEffect(Unit) {
                         delay(2500)
-                        isExtraPaid = true
+                        viewModel.updateExtraPaid(supportRequestId)
                         isProcessingPayment = false
                         showPaymentSheet = false
                     }
@@ -141,17 +143,15 @@ fun ServiceStatusScreen(
 }
 
 @Composable
-fun StatusHeaderCardLocal(state: ServiceState, isPaid: Boolean, isSelf: Boolean) {
-    val config = when (state) {
-        ServiceState.EVALUANDO -> Triple("Evaluando tu caso", Color.Gray, Icons.Default.Search)
-        ServiceState.REMOTO -> Triple("Solución Remota", Color(0xFF7C3AED), Icons.Default.Devices)
-        ServiceState.SITIO -> Triple(if (isPaid) "Visita Confirmada" else "Servicio en Sitio", Color(0xFF16A34A), Icons.Default.LocationOn)
-        ServiceState.DIAGNOSTICO -> Triple(if (isPaid || isSelf) "Laboratorio en curso" else "Centro Diagnóstico", Color(0xFF2563EB), Icons.Default.Apartment)
-    }
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, config.second.copy(alpha = 0.2f))) {
+fun StatusHeaderCardLocal(request: SupportRequest) {
+    val stateLabel = request.estado
+    val color = Color(0xFF16A34A)
+    val icon = Icons.Default.CheckCircle
+
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, color.copy(alpha = 0.2f))) {
         Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(48.dp).background(config.second.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) { Icon(config.third, null, tint = config.second) }
-            Spacer(modifier = Modifier.width(16.dp)); Column { Text(config.first, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = config.second); Text("Actualizado ahora", fontSize = 12.sp, color = Color.Gray) }
+            Box(modifier = Modifier.size(48.dp).background(color.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) { Icon(icon, null, tint = color) }
+            Spacer(modifier = Modifier.width(16.dp)); Column { Text(stateLabel, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = color); Text("Actualizado ahora", fontSize = 12.sp, color = Color.Gray) }
         }
     }
 }
@@ -164,37 +164,13 @@ fun EvaluationPendingCardLocal() {
 }
 
 @Composable
-fun RemoteDecisionCardLocal() {
-    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F3FF)), border = BorderStroke(1.dp, Color(0xFFDDD6FE))) {
-        Column(modifier = Modifier.padding(20.dp)) { Text("¡Todo listo!", fontWeight = FontWeight.Bold, color = Color(0xFF7C3AED), fontSize = 16.sp); Spacer(modifier = Modifier.height(8.dp)); Text("Camilo te llamará en breve para iniciar la sesión remota en la hora solicitada.", fontSize = 14.sp, color = Color.DarkGray, lineHeight = 20.sp) }
-    }
-}
-
-@Composable
-fun InSiteDecisionCardLocal(isPaid: Boolean, onPay: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = if (isPaid) Color(0xFFF0FDF4) else Color(0xFFFFFBEB)), border = BorderStroke(1.dp, if (isPaid) Color(0xFFDCFCE7) else Color(0xFFFEF3C7))) {
-        Column(modifier = Modifier.padding(20.dp)) { if (isPaid) { Text("Traslado confirmado", fontWeight = FontWeight.Bold, color = Color(0xFF16A34A)); Text("El técnico te llamará en minutos para confirmar la cita presencial.", fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp)) } else { Text("Visita requerida", fontWeight = FontWeight.Bold, color = Color(0xFFB45309)); Text("El técnico debe desplazarse a tu ubicación.", fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp)); Spacer(modifier = Modifier.height(16.dp)); Button(onClick = onPay, modifier = Modifier.fillMaxWidth().height(52.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)), shape = RoundedCornerShape(8.dp)) { Text("Pagar traslado ($30.000)", fontWeight = FontWeight.Bold) } } }
-    }
-}
-
-@Composable
-fun DiagnosticDecisionCardLocal(isPaid: Boolean, isSelf: Boolean, onPay: () -> Unit, onSelf: () -> Unit) {
-    if (isPaid) { Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)), border = BorderStroke(1.dp, Color(0xFFDCFCE7))) { Column(modifier = Modifier.padding(20.dp)) { Text("Recogida programada", fontWeight = FontWeight.Bold, color = Color(0xFF16A34A)); Text("El experto pasará por tu equipo pronto.", fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp)) } } } else if (!isSelf) { Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF)), border = BorderStroke(1.dp, Color(0xFFDBEAFE))) { Column(modifier = Modifier.padding(20.dp)) { Text("Requiere Laboratorio", fontWeight = FontWeight.Bold, color = Color(0xFF2563EB)); Text("Tu equipo necesita herramientas de nuestro centro especializado.", fontSize = 14.sp); Spacer(modifier = Modifier.height(16.dp)); Button(onClick = onPay, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(8.dp)) { Text("Pagar recogida ($30.000)", fontWeight = FontWeight.Bold) }; Spacer(modifier = Modifier.height(12.dp)); OutlinedButton(onClick = onSelf, modifier = Modifier.fillMaxWidth().height(52.dp), border = BorderStroke(1.dp, Color(0xFF2563EB)), shape = RoundedCornerShape(8.dp)) { Text("Yo lo llevo personalmente ($0)", color = Color(0xFF2563EB), fontWeight = FontWeight.Bold) } } } }
-}
-
-@Composable
-fun SelfDeliveryInfoCardLocal() {
-    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)), border = BorderStroke(1.dp, Color(0xFFDCFCE7))) { Column(modifier = Modifier.padding(20.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Store, null, tint = Color(0xFF16A34A)); Spacer(modifier = Modifier.width(12.dp)); Text("Punto de entrega", fontWeight = FontWeight.Bold, color = Color(0xFF166534)) }; Text("Calle 123 #45-67, Edificio Tech, Cali.", fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp), fontWeight = FontWeight.Medium); Text("ID: #ST-9921", fontSize = 12.sp, color = Color.Gray) } }
-}
-
-@Composable
 fun AssignedTechnicianCardLocal(technician: Technician) {
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFF3F4F6))) { Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) { Box(modifier = Modifier.size(56.dp).background(Color(0xFFF1F5F9), CircleShape).clip(CircleShape), contentAlignment = Alignment.Center) { Icon(Icons.Default.Person, null, tint = Color.LightGray, modifier = Modifier.size(32.dp)) }; Spacer(modifier = Modifier.width(16.dp)); Column { Text(technician.name, fontSize = 16.sp, fontWeight = FontWeight.Bold); Text("Técnico asignado", fontSize = 12.sp, color = Color(0xFF2563EB)) } } }
 }
 
 @Composable
-fun TimelineCardLocal(state: ServiceState, actionDone: Boolean) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFF3F4F6))) { Column(modifier = Modifier.padding(20.dp)) { Text("Estado del proceso", fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 16.dp)); TimelineItemLocal("Pago base recibido", true, true); TimelineItemLocal("Evaluación técnica", state != ServiceState.EVALUANDO, true); TimelineItemLocal("Ejecución del servicio", actionDone || state == ServiceState.REMOTO, false) } }
+fun TimelineCardLocal(request: SupportRequest) {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFF3F4F6))) { Column(modifier = Modifier.padding(20.dp)) { Text("Estado del proceso", fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 16.dp)); TimelineItemLocal("Pago base recibido", request.pagado, true); TimelineItemLocal("Evaluación técnica", true, true); TimelineItemLocal("Ejecución del servicio", false, false) } }
 }
 
 @Composable
@@ -258,5 +234,16 @@ fun PaymentMethodOptionLocal(title: String, subtitle: String, icon: ImageVector,
 @Preview(showBackground = true)
 @Composable
 fun ServiceStatusScreenPreview() {
-    SoportAppTheme { ServiceStatusScreen(technician = TechnicianRepository.getMainTechnician(), onBack = {}, onFinish = {}) }
+    SoportAppTheme { 
+        val mockTechnician = Technician(
+            id = "camilo-murcia",
+            name = "Camilo Andrés Murcia Romero",
+            title = "Ingeniero de Sistemas",
+            experience = "15 años",
+            bio = "Especialista en mantenimiento",
+            totalServices = 542,
+            reviews = emptyList()
+        )
+        ServiceStatusScreen(supportRequestId = 1L, technician = mockTechnician, onBack = {}, onFinish = {}) 
+    }
 }

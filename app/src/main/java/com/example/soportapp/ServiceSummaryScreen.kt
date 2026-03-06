@@ -8,28 +8,40 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.soportapp.ui.theme.SoportAppTheme
+import com.example.soportapp.ui.viewmodel.ServiceSummaryUiState
+import com.example.soportapp.ui.viewmodel.ServiceSummaryViewModel
+import com.example.soportapp.ui.viewmodel.ServiceSummaryViewModelFactory
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ServiceSummaryScreen(
-    serviceName: String = "Soporte técnico de computadores",
-    userType: String = "Empresa",
-    description: String = "El equipo no enciende y emite un pitido constante al intentar arrancar.",
-    location: String = "Calle 123 #45-67, Edificio Torre Norte",
-    onConfirm: () -> Unit,
+    supportRequestId: Long,
+    onConfirm: (Long) -> Unit,
     onBack: () -> Unit
 ) {
+    val application = LocalContext.current.applicationContext as SoportApplication
+    val viewModel: ServiceSummaryViewModel = viewModel(
+        factory = ServiceSummaryViewModelFactory(application.container.soportAppRepository)
+    )
+    val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(supportRequestId) {
+        viewModel.loadRequestDetails(supportRequestId)
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -49,133 +61,142 @@ fun ServiceSummaryScreen(
         },
         containerColor = Color(0xFFF9FAFB) // gray-50
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .padding(paddingValues)
-                .fillMaxSize()
-                .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Resumen del servicio",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
-                )
-                Text(
-                    text = "Revisa los detalles antes de confirmar",
-                    fontSize = 14.sp,
-                    color = Color.Gray
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            // Cards de resumen
-            item {
-                SummaryDetailCard(
-                    icon = Icons.Default.Settings,
-                    iconColor = Color(0xFF3B82F6),
-                    iconBg = Color(0xFFDBEAFE),
-                    label = "Servicio solicitado",
-                    value = serviceName,
-                    subValue = userType
-                )
-            }
-
-            item {
-                SummaryDetailCard(
-                    icon = Icons.Default.Description,
-                    iconColor = Color(0xFFF59E0B),
-                    iconBg = Color(0xFFFEF3C7),
-                    label = "Descripción del problema",
-                    value = description
-                )
-            }
-
-            item {
-                SummaryDetailCard(
-                    icon = Icons.Default.LocationOn,
-                    iconColor = Color(0xFF10B981),
-                    iconBg = Color(0xFFD1FAE5),
-                    label = "Ubicación",
-                    value = location
-                )
-            }
-
-            // Próximos pasos
-            item {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F7FF)),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Timer,
-                                contentDescription = null,
-                                tint = Color(0xFF1E40AF),
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Próximos pasos",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF1E40AF)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        val steps = listOf(
-                            "1. Pagar diagnóstico base",
-                            "2. Ingresar datos de contacto",
-                            "3. Asignación del técnico",
-                            "4. Evaluación y ejecución del servicio"
-                        )
-                        steps.forEach { step ->
-                            Text(
-                                text = step,
-                                fontSize = 13.sp,
-                                color = Color(0xFF1E40AF),
-                                modifier = Modifier.padding(vertical = 2.dp)
-                            )
-                        }
-                    }
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+            when (val state = uiState) {
+                is ServiceSummaryUiState.Loading -> {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
-            }
-
-            // Botón con gradiente
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-                val gradient = Brush.horizontalGradient(
-                    colors = listOf(Color(0xFF2563EB), Color(0xFF0D9488))
-                )
-                
-                Button(
-                    onClick = onConfirm,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                        .background(gradient, RoundedCornerShape(12.dp)),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                    contentPadding = PaddingValues(),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+                is ServiceSummaryUiState.Error -> {
+                    Text(text = state.message, modifier = Modifier.align(Alignment.Center))
+                }
+                is ServiceSummaryUiState.Success -> {
+                    val request = state.request
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 20.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Text(
-                            "Confirmar solicitud",
-                            color = Color.White,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        item {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Resumen del servicio",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF111827)
+                            )
+                            Text(
+                                text = "Revisa los detalles antes de confirmar",
+                                fontSize = 14.sp,
+                                color = Color.Gray
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+
+                        item {
+                            SummaryDetailCard(
+                                icon = Icons.Default.Settings,
+                                iconColor = Color(0xFF3B82F6),
+                                iconBg = Color(0xFFDBEAFE),
+                                label = "Servicio solicitado",
+                                value = request.serviceNameSnapshot, // From DB
+                                subValue = request.clientTypeId.replaceFirstChar { it.uppercase() } // From DB
+                            )
+                        }
+
+                        item {
+                            SummaryDetailCard(
+                                icon = Icons.Default.Description,
+                                iconColor = Color(0xFFF59E0B),
+                                iconBg = Color(0xFFFEF3C7),
+                                label = "Descripción del problema",
+                                value = request.problemDescription // From DB
+                            )
+                        }
+
+                        item {
+                            SummaryDetailCard(
+                                icon = Icons.Default.LocationOn,
+                                iconColor = Color(0xFF10B981),
+                                iconBg = Color(0xFFD1FAE5),
+                                label = "Ubicación",
+                                value = request.serviceAddress // From DB
+                            )
+                        }
+
+                        item {
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F7FF)),
+                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Timer,
+                                            contentDescription = null,
+                                            tint = Color(0xFF1E40AF),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "Próximos pasos",
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF1E40AF)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    val steps = listOf(
+                                        "1. Pagar diagnóstico base",
+                                        "2. Ingresar datos de contacto",
+                                        "3. Asignación del técnico",
+                                        "4. Evaluación y ejecución del servicio"
+                                    )
+                                    steps.forEach { step ->
+                                        Text(
+                                            text = step,
+                                            fontSize = 13.sp,
+                                            color = Color(0xFF1E40AF),
+                                            modifier = Modifier.padding(vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        item {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            val gradient = Brush.horizontalGradient(
+                                colors = listOf(Color(0xFF2563EB), Color(0xFF0D9488))
+                            )
+
+                            Button(
+                                onClick = { onConfirm(supportRequestId) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp)
+                                    .background(gradient, RoundedCornerShape(12.dp)),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                                contentPadding = PaddingValues(),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        "Confirmar solicitud",
+                                        color = Color.White,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(24.dp))
+                        }
                     }
                 }
-                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }
@@ -242,6 +263,7 @@ fun SummaryDetailCard(
 @Composable
 fun ServiceSummaryScreenPreview() {
     SoportAppTheme {
-        ServiceSummaryScreen(onConfirm = {}, onBack = {})
+        // This preview shows static data as it doesn't have access to a ViewModel
+        ServiceSummaryScreen(supportRequestId = 1L, onConfirm = {}, onBack = {})
     }
 }

@@ -158,16 +158,18 @@ fun ServiceCard(service: Service, onClick: () -> Unit) {
 
 val enterpriseServices = listOf(
     Service("soporte-computadores", "Soporte técnico", "Solución de fallas en equipos empresariales de software y hardware.", "Remoto o en sitio", Icons.Default.Build, Color(0xFF2563EB), Color(0xFFDBEAFE)),
-    Service("mantenimiento-preventivo", "Mantenimiento empresarial", "Revisión programada para evitar fallas en equipos corporativos.", "En sitio o Centro", Icons.Default.Settings, Color(0xFF16A34A), Color(0xFFDCFCE7)),
-    Service("diagnostico-tecnico", "Diagnóstico empresarial", "Evaluación profesional con informe y recomendaciones técnicas.", "Remoto o en sitio", Icons.Default.Search, Color(0xFFEA580C), Color(0xFFFFF7ED)),
+    // IDs alineados con la tabla ServiceCatalog de la base de datos
+    Service("mantenimiento-preventivo-empresarial", "Mantenimiento empresarial", "Revisión programada para evitar fallas en equipos corporativos.", "En sitio o Centro", Icons.Default.Settings, Color(0xFF16A34A), Color(0xFFDCFCE7)),
+    Service("diagnostico-tecnico-empresarial", "Diagnóstico empresarial", "Evaluación profesional con informe y recomendaciones técnicas.", "Remoto o en sitio", Icons.Default.Search, Color(0xFFEA580C), Color(0xFFFFF7ED)),
     Service("soporte-m365", "Soporte Microsoft 365", "Configuración y administración de correo y usuarios corporativos.", "Remoto o en sitio", Icons.Default.Cloud, Color(0xFF2563EB), Color(0xFFDBEAFE)),
-    Service("seguridad", "Seguridad informática", "Instalación de antivirus y protección de datos empresariales.", "Remoto o en sitio", Icons.Default.Security, Color(0xFFDC2626), Color(0xFFFEE2E2)),
+    Service("seguridad-informatica", "Seguridad informática", "Instalación de antivirus y protección de datos empresariales.", "Remoto o en sitio", Icons.Default.Security, Color(0xFFDC2626), Color(0xFFFEE2E2)),
 )
 
 val homeServices = listOf(
-    Service("mantenimiento-preventivo-hogar", "Mantenimiento de computador", "Revisión y limpieza para mejorar el rendimiento de tu PC.", "En sitio o Centro", Icons.Default.Settings, Color(0xFF16A34A), Color(0xFFDCFCE7)),
-    Service("mantenimiento-correctivo-hogar", "Reparación de computador", "Identificar y corregir fallas de funcionamiento en tu equipo.", "En sitio o Centro", Icons.Default.Build, Color(0xFF2563EB), Color(0xFFDBEAFE)),
-    Service("diagnostico-tecnico-hogar", "Diagnóstico técnico", "Evaluación para identificar la causa de fallas o bajo rendimiento.", "En sitio o Centro", Icons.Default.Search, Color(0xFFEA580C), Color(0xFFFFF7ED)),
+    // Para hogar reutilizamos IDs existentes en ServiceCatalog para evitar errores de FK
+    Service("soporte-computadores", "Mantenimiento de computador", "Revisión y limpieza para mejorar el rendimiento de tu PC.", "En sitio o Centro", Icons.Default.Settings, Color(0xFF16A34A), Color(0xFFDCFCE7)),
+    Service("soporte-computadores", "Reparación de computador", "Identificar y corregir fallas de funcionamiento en tu equipo.", "En sitio o Centro", Icons.Default.Build, Color(0xFF2563EB), Color(0xFFDBEAFE)),
+    Service("diagnostico-tecnico-empresarial", "Diagnóstico técnico", "Evaluación para identificar la causa de fallas o bajo rendimiento.", "En sitio o Centro", Icons.Default.Search, Color(0xFFEA580C), Color(0xFFFFF7ED)),
 )
 
 @Preview(showBackground = true)

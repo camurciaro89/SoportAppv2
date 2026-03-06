@@ -17,28 +17,46 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.soportapp.ui.theme.SoportAppTheme
+import com.example.soportapp.ui.viewmodel.TechnicianAssignmentUiState
+import com.example.soportapp.ui.viewmodel.TechnicianAssignmentViewModel
+import com.example.soportapp.ui.viewmodel.TechnicianAssignmentViewModelFactory
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TechnicianAssignmentScreen(
+    supportRequestId: Long,
     technician: Technician,
-    onContinue: () -> Unit,
+    onContinue: (Long) -> Unit,
     onBack: () -> Unit
 ) {
+    val application = LocalContext.current.applicationContext as SoportApplication
+    val viewModel: TechnicianAssignmentViewModel = viewModel(
+        factory = TechnicianAssignmentViewModelFactory(application.container.soportAppRepository)
+    )
+    val uiState by viewModel.uiState.collectAsState()
+
     var isSearching by remember { mutableStateOf(true) }
 
-    LaunchedEffect(Unit) {
-        delay(3000)
-        isSearching = false
+    LaunchedEffect(isSearching) {
+        if (isSearching) {
+            delay(3000) // Simulate search
+            isSearching = false
+        } else {
+            // Se corrige la conversión para evitar el cierre de la app
+            val techIdInt = technician.id.toIntOrNull() ?: 1 
+            viewModel.assignTechnician(supportRequestId, techIdInt)
+        }
     }
-
+    
     Scaffold(
         topBar = {
             TopAppBar(
@@ -66,7 +84,7 @@ fun TechnicianAssignmentScreen(
             if (isSearching) {
                 SearchingContent()
             } else {
-                TechnicianFoundContent(technician, onContinue)
+                TechnicianFoundContent(technician, onContinue = { onContinue(supportRequestId) }, uiState)
             }
         }
     }
@@ -114,7 +132,7 @@ fun SearchingContent() {
 }
 
 @Composable
-fun TechnicianFoundContent(technician: Technician, onContinue: () -> Unit) {
+fun TechnicianFoundContent(technician: Technician, onContinue: () -> Unit, uiState: TechnicianAssignmentUiState) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -152,12 +170,10 @@ fun TechnicianFoundContent(technician: Technician, onContinue: () -> Unit) {
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    // NOMBRE DEL TÉCNICO
                     Text(text = technician.name, fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
                     
                     Spacer(modifier = Modifier.height(8.dp))
                     
-                    // NOTA VERIFICADO (Ahora debajo del nombre y bien diseñada)
                     Surface(
                         color = Color(0xFF22C55E), 
                         shape = RoundedCornerShape(6.dp)
@@ -192,11 +208,16 @@ fun TechnicianFoundContent(technician: Technician, onContinue: () -> Unit) {
         item {
             Button(
                 onClick = onContinue,
+                enabled = uiState is TechnicianAssignmentUiState.Success,
                 modifier = Modifier.fillMaxWidth().height(60.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A))
             ) {
-                Text("Continuar", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                if (uiState is TechnicianAssignmentUiState.Loading) {
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                } else {
+                    Text("Continuar", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                }
             }
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -208,6 +229,7 @@ fun TechnicianFoundContent(technician: Technician, onContinue: () -> Unit) {
 fun TechnicianAssignmentScreenPreview() {
     SoportAppTheme {
         TechnicianAssignmentScreen(
+            supportRequestId = 1L,
             technician = TechnicianRepository.getMainTechnician(),
             onContinue = {},
             onBack = {}

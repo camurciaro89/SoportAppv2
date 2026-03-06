@@ -13,35 +13,48 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.soportapp.ui.theme.SoportAppTheme
-import kotlinx.coroutines.delay
+import com.example.soportapp.ui.viewmodel.PaymentUiState
+import com.example.soportapp.ui.viewmodel.PaymentViewModel
+import com.example.soportapp.ui.viewmodel.PaymentViewModelFactory
 import java.text.NumberFormat
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PaymentScreen(
+    supportRequestId: Long,
     amount: Int = 35000,
-    onPaymentSuccess: () -> Unit,
+    onPaymentSuccess: (Long) -> Unit,
     onBack: () -> Unit
 ) {
+    val application = LocalContext.current.applicationContext as SoportApplication
+    val viewModel: PaymentViewModel = viewModel(
+        factory = PaymentViewModelFactory(application.container.soportAppRepository)
+    )
+    val uiState by viewModel.uiState.collectAsState()
+
     var selectedMethod by remember { mutableStateOf("qr") }
-    var isProcessing by remember { mutableStateOf(false) }
-    
+
     val localeCO = Locale.forLanguageTag("es-CO")
     val currencyFormatter = NumberFormat.getCurrencyInstance(localeCO).apply {
         maximumFractionDigits = 0
     }
 
-    if (isProcessing) {
-        LaunchedEffect(Unit) {
-            delay(2500)
-            onPaymentSuccess()
+    LaunchedEffect(uiState) {
+        when (val state = uiState) {
+            is PaymentUiState.Success -> onPaymentSuccess(state.supportRequestId)
+            is PaymentUiState.Error -> {
+                // Handle error
+            }
+            else -> Unit
         }
     }
 
@@ -55,7 +68,7 @@ fun PaymentScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack, enabled = !isProcessing) {
+                    IconButton(onClick = onBack, enabled = uiState !is PaymentUiState.Loading) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Regresar")
                     }
                 },
@@ -64,7 +77,7 @@ fun PaymentScreen(
         },
         containerColor = Color(0xFFF9FAFB)
     ) { paddingValues ->
-        if (isProcessing) {
+        if (uiState is PaymentUiState.Loading) {
             ProcessingView()
         } else {
             Column(
@@ -156,14 +169,14 @@ fun PaymentScreen(
                 Spacer(modifier = Modifier.weight(1f))
 
                 Button(
-                    onClick = { isProcessing = true },
+                    onClick = { viewModel.processPayment(supportRequestId, amount.toDouble(), selectedMethod) },
                     modifier = Modifier.fillMaxWidth().height(60.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A))
                 ) {
                     Text("Realizar pago seguro", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
-                
+
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }
@@ -232,6 +245,6 @@ fun PaymentMethodItem(
 @Composable
 fun PaymentScreenPreview() {
     SoportAppTheme {
-        PaymentScreen(onPaymentSuccess = {}, onBack = {})
+        PaymentScreen(supportRequestId = 1L, onPaymentSuccess = {}, onBack = {})
     }
 }

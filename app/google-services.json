@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "808949646041",
+    "project_id": "soportapp-a8079",
+    "storage_bucket": "soportapp-a8079.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:808949646041:android:becd13aeead3e4b4b334c8",
+        "android_client_info": {
+          "package_name": "com.example.soportapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCeSVJHI1o38K5_CpfqJ_IA39GhDCgBXus"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
