@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -58,6 +59,10 @@ fun ProblemDescriptionScreen(
     }
 
     val isValid = description.text.isNotBlank() && location.text.isNotBlank()
+
+    // Límites de caracteres
+    val descriptionLimit = 500
+    val locationLimit = 200
 
     // Handle state changes and navigation
     LaunchedEffect(uiState) {
@@ -103,10 +108,20 @@ fun ProblemDescriptionScreen(
                     Text("¿Qué problema tienes? *", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     OutlinedTextField(
                         value = description,
-                        onValueChange = { description = it },
+                        onValueChange = { 
+                            if (it.text.length <= descriptionLimit) description = it 
+                        },
                         placeholder = { Text("Ej: El computador no prende...", fontSize = 16.sp) },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 100.dp),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        supportingText = {
+                            Text(
+                                text = "${description.text.length} / $descriptionLimit",
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.End,
+                                color = if (description.text.length >= descriptionLimit) MaterialTheme.colorScheme.error else Color.Gray
+                            )
+                        }
                     )
                 }
 
@@ -114,11 +129,21 @@ fun ProblemDescriptionScreen(
                     Text("Dirección del servicio *", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     OutlinedTextField(
                         value = location,
-                        onValueChange = { location = it },
+                        onValueChange = { 
+                            if (it.text.length <= locationLimit) location = it 
+                        },
                         placeholder = { Text("Calle, número, ciudad", fontSize = 16.sp) },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
                         shape = RoundedCornerShape(12.dp),
-                        leadingIcon = { Icon(Icons.Default.LocationOn, null, modifier = Modifier.size(24.dp)) }
+                        leadingIcon = { Icon(Icons.Default.LocationOn, null, modifier = Modifier.size(24.dp)) },
+                        supportingText = {
+                            Text(
+                                text = "${location.text.length} / $locationLimit",
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.End,
+                                color = if (location.text.length >= locationLimit) MaterialTheme.colorScheme.error else Color.Gray
+                            )
+                        }
                     )
                 }
 

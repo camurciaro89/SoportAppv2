@@ -24,6 +24,15 @@ class ProblemDescriptionViewModel(private val repository: SoportAppRepository) :
     private val _uiState = MutableStateFlow<ProblemDescriptionUiState>(ProblemDescriptionUiState.Initial)
     val uiState: StateFlow<ProblemDescriptionUiState> = _uiState
 
+    /**
+     * Limpia el texto de posibles etiquetas HTML o scripts maliciosos.
+     */
+    private fun sanitizeInput(input: String): String {
+        return input.replace(Regex("<[^>]*>"), "") // Elimina etiquetas HTML
+                    .replace(Regex("[{};]"), "")   // Elimina caracteres de código comunes
+                    .trim()
+    }
+
     fun saveProblemDescription(request: SupportRequest, photos: List<String>) {
         viewModelScope.launch {
             _uiState.value = ProblemDescriptionUiState.Loading
@@ -32,22 +41,22 @@ class ProblemDescriptionViewModel(private val repository: SoportAppRepository) :
                 val service = repository.getServiceById(request.serviceCatalogId)
                 val serviceName = service?.visibleName ?: "Servicio General"
                 
-                // 2. Crear una solicitud "limpia" para evitar errores de FK
+                // 2. Limpieza de seguridad y preparación de datos reales
                 val finalRequest = request.copy(
+                    problemDescription = sanitizeInput(request.problemDescription),
+                    serviceAddress = sanitizeInput(request.serviceAddress),
                     serviceNameSnapshot = serviceName,
-                    createdAt = System.currentTimeMillis().toString(), // Fecha real
+                    createdAt = System.currentTimeMillis().toString(), // Fecha inalterable
                     estado = "Pendiente",
                     requestStatus = "POR_PAGAR"
                 )
 
-                Log.d("SoportApp", "Intentando insertar solicitud...")
+                Log.d("SoportApp", "Seguridad verificada. Insertando solicitud...")
 
-                // 3. Insert the request
+                // 3. Insertar solicitud
                 val supportRequestId = repository.insertSupportRequest(finalRequest)
                 
-                Log.d("SoportApp", "Inserción exitosa. ID: $supportRequestId")
-
-                // 4. Save photos (Opcional, no bloquea el flujo principal)
+                // 4. Guardar fotos con blindaje (Si una falla, no detiene el proceso)
                 if (photos.isNotEmpty()) {
                     try {
                         val photoEntities = photos.map {
@@ -59,16 +68,15 @@ class ProblemDescriptionViewModel(private val repository: SoportAppRepository) :
                         }
                         repository.insertEvidencePhotos(photoEntities)
                     } catch (e: Exception) {
-                        Log.e("SoportApp", "Error al guardar fotos, pero continuamos: ${e.message}")
+                        Log.e("SoportApp", "Error fotos (No crítico): ${e.message}")
                     }
                 }
 
                 _uiState.value = ProblemDescriptionUiState.Success(supportRequestId)
 
             } catch (e: Exception) {
-                // LOG DETALLADO DEL ERROR
-                Log.e("SoportApp", "FALLO CRÍTICO AL GUARDAR: ${e.message}", e)
-                _uiState.value = ProblemDescriptionUiState.Error("Error técnico: ${e.localizedMessage}")
+                Log.e("SoportApp", "FALLO CRÍTICO: ${e.message}", e)
+                _uiState.value = ProblemDescriptionUiState.Error("Error de guardado seguro. Intenta de nuevo.")
             }
         }
     }

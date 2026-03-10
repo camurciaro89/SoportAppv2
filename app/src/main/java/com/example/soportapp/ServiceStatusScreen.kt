@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.FactCheck
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -94,10 +95,29 @@ fun ServiceStatusScreen(
         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             when (val state = uiState) {
                 is ServiceStatusUiState.Loading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(color = Color(0xFF2563EB))
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Cargando información...", color = Color.Gray)
+                    }
                 }
                 is ServiceStatusUiState.Error -> {
-                    Text(text = state.message, modifier = Modifier.align(Alignment.Center))
+                    Column(
+                        modifier = Modifier.fillMaxSize().padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(Icons.Default.ErrorOutline, null, tint = Color.Red, modifier = Modifier.size(48.dp))
+                        Text(text = "Ups! Algo salió mal", fontWeight = FontWeight.Bold)
+                        Text(text = state.message, textAlign = TextAlign.Center, color = Color.Gray)
+                        Button(onClick = { viewModel.loadRequest(supportRequestId) }, modifier = Modifier.padding(top = 16.dp)) {
+                            Text("Reintentar")
+                        }
+                    }
                 }
                 is ServiceStatusUiState.Success -> {
                     val request = state.request
@@ -107,21 +127,41 @@ fun ServiceStatusScreen(
                     ) {
                         item { Spacer(modifier = Modifier.height(8.dp)) }
 
-                        item { StatusHeaderCardLocal(request) }
-
                         item {
-                            EvaluationPendingCardLocal()
+                            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFE5E7EB))) {
+                                Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Box(modifier = Modifier.size(48.dp).background(Color(0xFFDCFCE7), CircleShape), contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF16A34A))
+                                    }
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Column {
+                                        Text(request.estado, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF16A34A))
+                                        Text("Servicio: ${request.serviceNameSnapshot}", fontSize = 14.sp, color = Color.Gray)
+                                    }
+                                }
+                            }
                         }
 
                         item { AssignedTechnicianCardLocal(technician) }
-                        item { TimelineCardLocal(request) }
+                        
+                        item {
+                            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFF3F4F6))) {
+                                Column(modifier = Modifier.padding(20.dp)) {
+                                    Text("Estado del proceso", fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 16.dp))
+                                    TimelineItemUnique("Pago base recibido", request.pagado, true)
+                                    TimelineItemUnique("Evaluación técnica", true, true)
+                                    TimelineItemUnique("Ejecución del servicio", false, false)
+                                }
+                            }
+                        }
+                        
                         item { Spacer(modifier = Modifier.height(32.dp)) }
                     }
                 }
             }
 
             if (showPaymentSheet) {
-                PaymentBottomSheetLocal(
+                PaymentBottomSheetUnique(
                     amount = 30000,
                     isProcessing = isProcessingPayment,
                     onConfirm = { isProcessingPayment = true },
@@ -143,43 +183,34 @@ fun ServiceStatusScreen(
 }
 
 @Composable
-fun StatusHeaderCardLocal(request: SupportRequest) {
-    val stateLabel = request.estado
-    val color = Color(0xFF16A34A)
-    val icon = Icons.Default.CheckCircle
-
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, color.copy(alpha = 0.2f))) {
+fun AssignedTechnicianCardLocal(technician: Technician) {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFF3F4F6))) {
         Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(48.dp).background(color.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) { Icon(icon, null, tint = color) }
-            Spacer(modifier = Modifier.width(16.dp)); Column { Text(stateLabel, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = color); Text("Actualizado ahora", fontSize = 12.sp, color = Color.Gray) }
+            Box(modifier = Modifier.size(56.dp).background(Color(0xFFF1F5F9), CircleShape).clip(CircleShape), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.Person, null, tint = Color.LightGray, modifier = Modifier.size(32.dp))
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(technician.name, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("Técnico asignado", fontSize = 12.sp, color = Color(0xFF2563EB))
+            }
         }
     }
 }
 
 @Composable
-fun EvaluationPendingCardLocal() {
-    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White)) {
-        Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) { CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 3.dp, color = Color.Gray); Spacer(modifier = Modifier.height(16.dp)); Text("Analizando tu falla...", textAlign = TextAlign.Center, fontSize = 15.sp, color = Color.DarkGray) }
+fun TimelineItemUnique(text: String, isDone: Boolean, showLine: Boolean) {
+    Row {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(if (isDone) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked, null, tint = if (isDone) Color(0xFF16A34A) else Color.LightGray, modifier = Modifier.size(20.dp))
+            if (showLine) Box(modifier = Modifier.width(2.dp).height(24.dp).background(Color.LightGray.copy(alpha = 0.5f)))
+        }
+        Text(text, fontSize = 14.sp, color = if (isDone) Color.Black else Color.Gray, modifier = Modifier.padding(start = 12.dp, top = 2.dp))
     }
 }
 
 @Composable
-fun AssignedTechnicianCardLocal(technician: Technician) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFF3F4F6))) { Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) { Box(modifier = Modifier.size(56.dp).background(Color(0xFFF1F5F9), CircleShape).clip(CircleShape), contentAlignment = Alignment.Center) { Icon(Icons.Default.Person, null, tint = Color.LightGray, modifier = Modifier.size(32.dp)) }; Spacer(modifier = Modifier.width(16.dp)); Column { Text(technician.name, fontSize = 16.sp, fontWeight = FontWeight.Bold); Text("Técnico asignado", fontSize = 12.sp, color = Color(0xFF2563EB)) } } }
-}
-
-@Composable
-fun TimelineCardLocal(request: SupportRequest) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFF3F4F6))) { Column(modifier = Modifier.padding(20.dp)) { Text("Estado del proceso", fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 16.dp)); TimelineItemLocal("Pago base recibido", request.pagado, true); TimelineItemLocal("Evaluación técnica", true, true); TimelineItemLocal("Ejecución del servicio", false, false) } }
-}
-
-@Composable
-fun TimelineItemLocal(text: String, isDone: Boolean, showLine: Boolean) {
-    Row { Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(if (isDone) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked, null, tint = if (isDone) Color(0xFF16A34A) else Color.LightGray, modifier = Modifier.size(20.dp)); if (showLine) Box(modifier = Modifier.width(2.dp).height(24.dp).background(Color.LightGray.copy(alpha = 0.5f))) }; Text(text, fontSize = 14.sp, color = if (isDone) Color.Black else Color.Gray, modifier = Modifier.padding(start = 12.dp, top = 2.dp)) }
-}
-
-@Composable
-fun PaymentBottomSheetLocal(amount: Int, isProcessing: Boolean, onConfirm: () -> Unit, onClose: () -> Unit, currencyFormatter: NumberFormat) {
+fun PaymentBottomSheetUnique(amount: Int, isProcessing: Boolean, onConfirm: () -> Unit, onClose: () -> Unit, currencyFormatter: NumberFormat) {
     var selectedMethod by remember { mutableStateOf("qr") }
     Surface(modifier = Modifier.fillMaxSize(), color = Color.Black.copy(alpha = 0.6f)) {
         Box(contentAlignment = Alignment.BottomCenter) {
@@ -203,9 +234,9 @@ fun PaymentBottomSheetLocal(amount: Int, isProcessing: Boolean, onConfirm: () ->
                         Spacer(modifier = Modifier.height(32.dp))
                         Text("Selecciona tu opción de pago", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(12.dp))
-                        PaymentMethodOptionLocal(title = "QR Bancolombia / Nequi", subtitle = "Pago rápido desde tu celular", icon = Icons.Default.QrCodeScanner, isSelected = selectedMethod == "qr", onClick = { selectedMethod = "qr" })
+                        PaymentMethodOptionUnique(title = "QR Bancolombia / Nequi", subtitle = "Pago rápido desde tu celular", icon = Icons.Default.QrCodeScanner, isSelected = selectedMethod == "qr", onClick = { selectedMethod = "qr" })
                         Spacer(modifier = Modifier.height(12.dp))
-                        PaymentMethodOptionLocal(title = "PSE / Tarjetas (Wompi)", subtitle = "Pago seguro bancario", icon = Icons.Default.VerifiedUser, isSelected = selectedMethod == "wompi", onClick = { selectedMethod = "wompi" })
+                        PaymentMethodOptionUnique(title = "PSE / Tarjetas (Wompi)", subtitle = "Pago seguro bancario", icon = Icons.Default.VerifiedUser, isSelected = selectedMethod == "wompi", onClick = { selectedMethod = "wompi" })
                         Spacer(modifier = Modifier.weight(1f))
                         Button(onClick = onConfirm, modifier = Modifier.fillMaxWidth().height(60.dp), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A))) {
                             Text("Realizar pago seguro", fontWeight = FontWeight.Bold, fontSize = 18.sp)
@@ -218,7 +249,7 @@ fun PaymentBottomSheetLocal(amount: Int, isProcessing: Boolean, onConfirm: () ->
 }
 
 @Composable
-fun PaymentMethodOptionLocal(title: String, subtitle: String, icon: ImageVector, isSelected: Boolean, onClick: () -> Unit) {
+fun PaymentMethodOptionUnique(title: String, subtitle: String, icon: ImageVector, isSelected: Boolean, onClick: () -> Unit) {
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = if (isSelected) Color(0xFFEFF6FF) else Color.White), border = BorderStroke(width = if (isSelected) 2.dp else 1.dp, color = if (isSelected) Color(0xFF2563EB) else Color(0xFFE5E7EB))) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.size(48.dp).background(if (isSelected) Color(0xFFDBEAFE) else Color(0xFFF1F5F9), RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
