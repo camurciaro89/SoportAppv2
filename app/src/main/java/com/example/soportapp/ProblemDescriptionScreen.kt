@@ -33,7 +33,7 @@ import com.example.soportapp.ui.viewmodel.ProblemDescriptionViewModelFactory
 fun ProblemDescriptionScreen(
     userType: String,
     serviceId: String,
-    onContinue: (Long) -> Unit, // Pass supportRequestId
+    onContinue: (Long) -> Unit,
     onBack: () -> Unit
 ) {
     val application = LocalContext.current.applicationContext as SoportApplication
@@ -59,12 +59,9 @@ fun ProblemDescriptionScreen(
     }
 
     val isValid = description.text.isNotBlank() && location.text.isNotBlank()
-
-    // Límites de caracteres
     val descriptionLimit = 500
     val locationLimit = 200
 
-    // Handle state changes and navigation
     LaunchedEffect(uiState) {
         when (val state = uiState) {
             is ProblemDescriptionUiState.Success -> onContinue(state.supportRequestId)
@@ -94,8 +91,8 @@ fun ProblemDescriptionScreen(
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         containerColor = Color(0xFFF9FAFB)
-    ) {
-        Box(modifier = Modifier.fillMaxSize().padding(it)) {
+    ) { paddingValues ->
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             LazyColumn(
                 modifier = Modifier
                     .padding(horizontal = 24.dp)
@@ -108,19 +105,12 @@ fun ProblemDescriptionScreen(
                     Text("¿Qué problema tienes? *", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     OutlinedTextField(
                         value = description,
-                        onValueChange = { 
-                            if (it.text.length <= descriptionLimit) description = it 
-                        },
+                        onValueChange = { if (it.text.length <= descriptionLimit) description = it },
                         placeholder = { Text("Ej: El computador no prende...", fontSize = 16.sp) },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 100.dp),
                         shape = RoundedCornerShape(12.dp),
                         supportingText = {
-                            Text(
-                                text = "${description.text.length} / $descriptionLimit",
-                                modifier = Modifier.fillMaxWidth(),
-                                textAlign = TextAlign.End,
-                                color = if (description.text.length >= descriptionLimit) MaterialTheme.colorScheme.error else Color.Gray
-                            )
+                            Text(text = "${description.text.length} / $descriptionLimit", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.End)
                         }
                     )
                 }
@@ -129,20 +119,13 @@ fun ProblemDescriptionScreen(
                     Text("Dirección del servicio *", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     OutlinedTextField(
                         value = location,
-                        onValueChange = { 
-                            if (it.text.length <= locationLimit) location = it 
-                        },
+                        onValueChange = { if (it.text.length <= locationLimit) location = it },
                         placeholder = { Text("Calle, número, ciudad", fontSize = 16.sp) },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
                         shape = RoundedCornerShape(12.dp),
                         leadingIcon = { Icon(Icons.Default.LocationOn, null, modifier = Modifier.size(24.dp)) },
                         supportingText = {
-                            Text(
-                                text = "${location.text.length} / $locationLimit",
-                                modifier = Modifier.fillMaxWidth(),
-                                textAlign = TextAlign.End,
-                                color = if (location.text.length >= locationLimit) MaterialTheme.colorScheme.error else Color.Gray
-                            )
+                            Text(text = "${location.text.length} / $locationLimit", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.End)
                         }
                     )
                 }
@@ -158,11 +141,7 @@ fun ProblemDescriptionScreen(
                     ) {
                         Icon(Icons.Default.PhotoCamera, null, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            if (photos.isEmpty()) "Adjuntar fotos o evidencia"
-                            else "Fotos adjuntadas (${photos.size}/3)",
-                            fontSize = 15.sp
-                        )
+                        Text(if (photos.isEmpty()) "Adjuntar evidencia" else "Fotos adjuntadas (${photos.size}/3)")
                     }
                 }
 
@@ -176,21 +155,14 @@ fun ProblemDescriptionScreen(
                             shape = RoundedCornerShape(12.dp),
                             border = BorderStroke(1.dp, Color.Gray)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(20.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
+                            Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text(text = day, fontSize = 16.sp, fontWeight = FontWeight.Medium)
                                 Icon(Icons.Default.ArrowDropDown, null, modifier = Modifier.size(32.dp))
                             }
                         }
                         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                             daysOfWeek.forEach { selection ->
-                                DropdownMenuItem(
-                                    text = { Text(selection, fontSize = 16.sp) },
-                                    onClick = { day = selection; expanded = false }
-                                )
+                                DropdownMenuItem(text = { Text(selection, fontSize = 16.sp) }, onClick = { day = selection; expanded = false })
                             }
                         }
                     }
@@ -205,26 +177,22 @@ fun ProblemDescriptionScreen(
                         modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
                         shape = RoundedCornerShape(12.dp),
                         leadingIcon = { Icon(Icons.Default.AccessTime, null, modifier = Modifier.size(24.dp)) },
-                        isError = !isTimeValid && timeInput.text.isNotEmpty()
+                        isError = !isTimeValid && timeInput.text.isNotEmpty(),
+                        supportingText = {
+                            // TEXTO DE APOYO DINÁMICO SEGÚN EL DÍA
+                            val helpText = if (day == "Sábado") "Sábados: 8:00 AM a 11:00 AM" 
+                                          else "Lunes-Viernes: 8:00-13:00 y 14:00-19:00"
+                            Text(text = helpText, color = if (!isTimeValid && timeInput.text.isNotEmpty()) MaterialTheme.colorScheme.error else Color.Gray)
+                        }
                     )
                 }
 
                 item {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7ED)),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, Color(0xFFFED7AA))
-                    ) {
+                    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7ED)), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, Color(0xFFFED7AA))) {
                         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Info, null, tint = Color(0xFFEA580C), modifier = Modifier.size(24.dp))
                             Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = "Los servicios en domingos y festivos son excepcionales y requieren confirmación directa del técnico según disponibilidad.",
-                                fontSize = 13.sp,
-                                color = Color(0xFF9A3412),
-                                fontWeight = FontWeight.Medium,
-                                lineHeight = 18.sp
-                            )
+                            Text(text = "Los servicios en domingos y festivos son excepcionales y requieren confirmación directa del técnico según disponibilidad.", fontSize = 13.sp, color = Color(0xFF9A3412), fontWeight = FontWeight.Medium, lineHeight = 18.sp)
                         }
                     }
                 }
@@ -239,19 +207,8 @@ fun ProblemDescriptionScreen(
                                 suggestedDay = day,
                                 suggestedTime = timeInput.text,
                                 clientTypeId = userType,
-                                // Set default values for fields to be filled in later steps
-                                ubicacion = location.text,
-                                modalidad = "",
                                 estado = "Pendiente",
-                                createdAt = "",
-                                isHolidayException = false,
-                                pagado = false,
-                                reembolsado = false,
-                                suggestedModality = "",
-                                serviceNameSnapshot = "",
-                                finalDescription = "",
-                                confirmedAddress = "",
-                                requestStatus = "INCOMPLETO"
+                                requestStatus = "POR_PAGAR"
                             )
                             viewModel.saveProblemDescription(request, photos.toList())
                         },

@@ -45,6 +45,7 @@ fun ContactInfoScreen(
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
 
+    // VALIDACIÓN: El nombre debe tener al menos 3 letras y el celular 10 dígitos
     val isValid = name.trim().length >= 3 && phone.length == 10
 
     LaunchedEffect(supportRequestId) {
@@ -106,9 +107,14 @@ fun ContactInfoScreen(
 
                         Spacer(modifier = Modifier.height(32.dp))
 
+                        // CAMPO NOMBRE: SOLO LETRAS Y ESPACIOS
                         OutlinedTextField(
                             value = name,
-                            onValueChange = { name = it },
+                            onValueChange = { input ->
+                                if (input.all { it.isLetter() || it.isWhitespace() }) {
+                                    name = input
+                                }
+                            },
                             label = { Text("Nombre completo") },
                             placeholder = { Text("Ej: Juan Pérez") },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
@@ -119,9 +125,14 @@ fun ContactInfoScreen(
 
                         Spacer(modifier = Modifier.height(20.dp))
 
+                        // CAMPO CELULAR: SOLO NÚMEROS (MAX 10)
                         OutlinedTextField(
                             value = phone,
-                            onValueChange = { if (it.length <= 10) phone = it.filter { char -> char.isDigit() } },
+                            onValueChange = { input ->
+                                if (input.length <= 10 && input.all { it.isDigit() }) {
+                                    phone = input
+                                }
+                            },
                             label = { Text("Número de celular") },
                             placeholder = { Text("300 123 4567") },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
