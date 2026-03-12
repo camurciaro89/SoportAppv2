@@ -36,13 +36,21 @@ class ServiceStatusViewModel(private val repository: SoportAppRepository) : View
         }
     }
 
-    fun updateExtraPaid(supportRequestId: Long) {
+    /**
+     * SIMULACIÓN PERSISTENTE: Guarda en la BD que se pagó la recogida o se eligió entrega personal.
+     */
+    fun updateRequestStatus(supportRequestId: Long, isPaid: Boolean, isSelfDelivery: Boolean) {
         viewModelScope.launch {
             try {
                 val request = repository.getSupportRequest(supportRequestId)
                 if (request != null) {
-                    val updated = request.copy(pagado = true) // O una columna específica para el extra
+                    val updated = request.copy(
+                        pagado = isPaid,
+                        // Usamos un campo existente para simular la elección
+                        modalidad = if (isSelfDelivery) "ENTREGA_PERSONAL" else if (isPaid) "RECOGIDA_PAGADA" else request.modalidad
+                    )
                     repository.updateSupportRequest(updated)
+                    // Recargamos el estado para que la UI se actualice
                     loadRequest(supportRequestId)
                 }
             } catch (e: Exception) {

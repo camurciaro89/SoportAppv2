@@ -19,7 +19,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,9 +30,7 @@ import com.example.soportapp.ui.viewmodel.ServiceStatusViewModel
 import com.example.soportapp.ui.viewmodel.ServiceStatusViewModelFactory
 import kotlinx.coroutines.delay
 import java.text.NumberFormat
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,27 +48,19 @@ fun ServiceStatusScreen(
 
     var showPaymentSheet by remember { mutableStateOf(false) }
     var isProcessingPayment by remember { mutableStateOf(false) }
-    var isSelfDelivery by remember { mutableStateOf(false) }
-    var isRecogidaPaid by remember { mutableStateOf(false) }
 
-    val localeCO = Locale.forLanguageTag("es-CO")
-    val currencyFormatter = NumberFormat.getCurrencyInstance(localeCO).apply {
+    val currencyFormatter = NumberFormat.getCurrencyInstance(Locale("es", "CO")).apply {
         maximumFractionDigits = 0
     }
 
-    LaunchedEffect(supportRequestId) {
+    LaunchedEffect(Unit) {
         viewModel.loadRequest(supportRequestId)
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Column {
-                        Text("Seguimiento del servicio", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text("Paso 9 de 10", fontSize = 13.sp, color = Color.Gray)
-                    }
-                },
+                title = { Text("Estado del Servicio", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Regresar")
@@ -80,59 +69,44 @@ fun ServiceStatusScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         },
-        bottomBar = {
-            Surface(modifier = Modifier.fillMaxWidth(), color = Color.White, shadowElevation = 12.dp) {
-                Box(modifier = Modifier.padding(20.dp)) {
-                    Button(
-                        onClick = onFinish,
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A))
-                    ) {
-                        Text("Finalizar servicio y calificar", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        },
         containerColor = Color(0xFFF9FAFB)
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+        Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
             when (val state = uiState) {
-                is ServiceStatusUiState.Loading -> {
-                    Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                        CircularProgressIndicator(color = Color(0xFF2563EB))
-                        Text("Cargando...", color = Color.Gray)
-                    }
-                }
-                is ServiceStatusUiState.Error -> {
-                    Text(text = state.message, modifier = Modifier.align(Alignment.Center), color = Color.Red)
-                }
+                is ServiceStatusUiState.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                is ServiceStatusUiState.Error -> Text(state.message, modifier = Modifier.align(Alignment.Center))
                 is ServiceStatusUiState.Success -> {
-                    // SIMULACIÓN: Forzamos modalidad a DIAGNOSTICO para ver las dos opciones
-                    val simulatedRequest = state.request.copy(modalidad = "DIAGNOSTICO")
+                    val request = state.request
+                    // Lógica de UI basada en el estado real de la BD
+                    val isRecogidaPaid = request.pagado || request.modalidad == "RECOGIDA_PAGADA"
+                    val isSelfDelivery = request.modalidad == "ENTREGA_PERSONAL"
                     
                     LazyColumn(
                         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         item { Spacer(modifier = Modifier.height(8.dp)) }
-
-                        item { StatusHeaderCardFinal(simulatedRequest, isSelfDelivery, isRecogidaPaid) }
-
+                        item { SecurityCodeCard(code = "8429") }
+                        item { StatusHeaderCardFinal(request, isSelfDelivery, isRecogidaPaid) }
                         item {
                             DecisionContentFinal(
-                                request = simulatedRequest,
+                                request = request,
                                 isSelfDelivery = isSelfDelivery,
                                 isRecogidaPaid = isRecogidaPaid,
                                 onPayExtra = { showPaymentSheet = true },
-                                onChooseSelfDelivery = { isSelfDelivery = true }
+                                onChooseSelfDelivery = { 
+                                    viewModel.updateRequestStatus(supportRequestId, false, true)
+                                }
                             )
                         }
-
                         item { AssignedTechnicianCardFinal(technician) }
-                        
                         item {
-                            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFF3F4F6))) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                border = BorderStroke(1.dp, Color(0xFFF3F4F6))
+                            ) {
                                 Column(modifier = Modifier.padding(20.dp)) {
                                     Text("Estado del proceso", fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 16.dp))
                                     TimelineItemLocal("Pago base recibido", true, true)
@@ -141,7 +115,6 @@ fun ServiceStatusScreen(
                                 }
                             }
                         }
-                        
                         item { Spacer(modifier = Modifier.height(32.dp)) }
                     }
                 }
@@ -158,8 +131,8 @@ fun ServiceStatusScreen(
 
                 if (isProcessingPayment) {
                     LaunchedEffect(Unit) {
-                        delay(2500)
-                        isRecogidaPaid = true
+                        delay(2500) // Simulación de pasarela segura
+                        viewModel.updateRequestStatus(supportRequestId, true, false)
                         isProcessingPayment = false
                         showPaymentSheet = false
                     }
@@ -170,8 +143,26 @@ fun ServiceStatusScreen(
 }
 
 @Composable
+fun SecurityCodeCard(code: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    ) {
+        Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("CÓDIGO DE SEGURIDAD", color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(code, color = Color.White, fontSize = 48.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 12.sp)
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("Dile estos números al técnico cuando llegue a tu casa para confirmar que es de TuTranquilo.", color = Color.White.copy(alpha = 0.9f), fontSize = 14.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = 20.sp)
+        }
+    }
+}
+
+@Composable
 fun StatusHeaderCardFinal(request: SupportRequest, isSelf: Boolean, isPaid: Boolean) {
-    val color = Color(0xFF2563EB) // Azul Paso 5
+    val color = Color(0xFF2563EB)
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, color.copy(alpha = 0.2f))) {
         Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.size(48.dp).background(color.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) {
@@ -181,7 +172,7 @@ fun StatusHeaderCardFinal(request: SupportRequest, isSelf: Boolean, isPaid: Bool
             Column {
                 val title = if (isSelf) "Entrega en curso" else if (isPaid) "Recogida programada" else "Requiere Laboratorio"
                 Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = color)
-                Text("Servicio: Soporte técnico", fontSize = 14.sp, color = Color.Gray)
+                Text("Servicio: ${request.serviceNameSnapshot}", fontSize = 14.sp, color = Color.Gray)
             }
         }
     }
