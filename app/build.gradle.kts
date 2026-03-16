@@ -21,8 +21,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = true // Activado para ciberseguridad (Ofuscación)
-            isShrinkResources = true
+            isMinifyEnabled = false // Desactivamos ofuscación por ahora para asegurar carga
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -30,11 +30,11 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "17"
     }
     buildFeatures {
         compose = true
@@ -56,16 +56,11 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.androidx.navigation.compose)
 
-    // Dependencias de Room
+    // Room estándar (Sin SQLCipher para estabilidad)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
-    // Ciberseguridad: SQLCipher para encriptación de BD
-    implementation(libs.sqlcipher.android)
-    implementation(libs.androidx.sqlite.ktx)
-
-    // Dependencias de Firebase
     implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-firestore-ktx")

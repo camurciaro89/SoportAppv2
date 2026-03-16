@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-// UI State for ProblemDescriptionScreen
 sealed interface ProblemDescriptionUiState {
     object Initial : ProblemDescriptionUiState
     object Loading : ProblemDescriptionUiState
@@ -24,12 +23,9 @@ class ProblemDescriptionViewModel(private val repository: SoportAppRepository) :
     private val _uiState = MutableStateFlow<ProblemDescriptionUiState>(ProblemDescriptionUiState.Initial)
     val uiState: StateFlow<ProblemDescriptionUiState> = _uiState
 
-    /**
-     * Limpia el texto de posibles etiquetas HTML o scripts maliciosos.
-     */
     private fun sanitizeInput(input: String): String {
-        return input.replace(Regex("<[^>]*>"), "") // Elimina etiquetas HTML
-                    .replace(Regex("[{};]"), "")   // Elimina caracteres de código comunes
+        return input.replace(Regex("<[^>]*>"), "")
+                    .replace(Regex("[{};]"), "")
                     .trim()
     }
 
@@ -37,26 +33,30 @@ class ProblemDescriptionViewModel(private val repository: SoportAppRepository) :
         viewModelScope.launch {
             _uiState.value = ProblemDescriptionUiState.Loading
             try {
-                // 1. Obtener nombre del servicio (Opcional, no bloquea)
-                val service = repository.getServiceById(request.serviceCatalogId)
-                val serviceName = service?.visibleName ?: "Servicio General"
+                // 1. Obtener nombre del servicio con fallback
+                var serviceName = "Soporte Técnico"
+                try {
+                    val service = repository.getServiceById(request.serviceCatalogId)
+                    if (service != null) serviceName = service.visibleName
+                } catch (e: Exception) {
+                    Log.w("SoportApp", "Catálogo no listo, usando genérico")
+                }
                 
-                // 2. Limpieza de seguridad y preparación de datos reales
+                // 2. Preparar datos
                 val finalRequest = request.copy(
                     problemDescription = sanitizeInput(request.problemDescription),
                     serviceAddress = sanitizeInput(request.serviceAddress),
                     serviceNameSnapshot = serviceName,
-                    createdAt = System.currentTimeMillis().toString(), // Fecha inalterable
+                    createdAt = System.currentTimeMillis().toString(),
                     estado = "Pendiente",
                     requestStatus = "POR_PAGAR"
                 )
 
-                Log.d("SoportApp", "Seguridad verificada. Insertando solicitud...")
-
                 // 3. Insertar solicitud
+                Log.d("SoportApp", "Intentando guardado local seguro...")
                 val supportRequestId = repository.insertSupportRequest(finalRequest)
                 
-                // 4. Guardar fotos con blindaje (Si una falla, no detiene el proceso)
+                // 4. Fotos
                 if (photos.isNotEmpty()) {
                     try {
                         val photoEntities = photos.map {
@@ -68,21 +68,28 @@ class ProblemDescriptionViewModel(private val repository: SoportAppRepository) :
                         }
                         repository.insertEvidencePhotos(photoEntities)
                     } catch (e: Exception) {
-                        Log.e("SoportApp", "Error fotos (No crítico): ${e.message}")
+                        Log.e("SoportApp", "Error fotos: ${e.message}")
                     }
                 }
 
                 _uiState.value = ProblemDescriptionUiState.Success(supportRequestId)
 
             } catch (e: Exception) {
-                Log.e("SoportApp", "FALLO CRÍTICO: ${e.message}", e)
-                _uiState.value = ProblemDescriptionUiState.Error("Error de guardado seguro. Intenta de nuevo.")
+                // LOG DETALLADO PARA NOSOTROS
+                Log.e("SoportApp", "FALLO CRÍTICO EN GUARDADO: ${e.message}", e)
+                
+                // MENSAJE PARA EL USUARIO
+                val errorMsg = when {
+                    e.message?.contains("passphrase", ignoreCase = true) == true -> "Error de llave de seguridad. Reinstala la app."
+                    e.message?.contains("database", ignoreCase = true) == true -> "Error de base de datos segura."
+                    else -> "No se pudo guardar la solicitud. Reintenta."
+                }
+                _uiState.value = ProblemDescriptionUiState.Error(errorMsg)
             }
         }
     }
 }
 
-// ViewModel Factory
 class ProblemDescriptionViewModelFactory(private val repository: SoportAppRepository) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(ProblemDescriptionViewModel::class.java)) {

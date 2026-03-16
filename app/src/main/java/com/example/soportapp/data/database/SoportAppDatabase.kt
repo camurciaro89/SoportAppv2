@@ -9,8 +9,6 @@ import com.example.soportapp.data.database.dao.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import net.sqlcipher.database.SQLiteDatabase
-import net.sqlcipher.database.SupportFactory
 
 @Database(
     entities = [
@@ -23,7 +21,7 @@ import net.sqlcipher.database.SupportFactory
         EvidencePhoto::class,
         TechnicianAssignment::class
     ],
-    version = 5,
+    version = 7, // Incrementamos versión para forzar limpieza
     exportSchema = false
 )
 abstract class SoportAppDatabase : RoomDatabase() {
@@ -83,19 +81,11 @@ abstract class SoportAppDatabase : RoomDatabase() {
 
         fun getDatabase(context: Context, scope: CoroutineScope): SoportAppDatabase {
             return INSTANCE ?: synchronized(this) {
-                // Ciberseguridad: Inicialización de SQLCipher
-                SQLiteDatabase.loadLibs(context)
-                
-                // Generamos una llave de encriptación (En producción esto vendría del Android Keystore)
-                val passphrase = SQLiteDatabase.getBytes("TuTranquiloSeguro2024-Cali".toCharArray())
-                val factory = SupportFactory(passphrase)
-
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     SoportAppDatabase::class.java,
                     "soportapp_database"
                 )
-                .openHelperFactory(factory) // Activación de encriptación de disco
                 .addCallback(SoportAppDatabaseCallback(scope))
                 .fallbackToDestructiveMigration()
                 .build()

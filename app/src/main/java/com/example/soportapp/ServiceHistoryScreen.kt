@@ -1,13 +1,12 @@
 package com.example.soportapp
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -37,7 +36,7 @@ fun ServiceHistoryScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(Unit) {
-        viewModel.loadAllRequests() // For now loading all, as a "Technician view" or general history
+        viewModel.loadAllRequests()
     }
 
     Scaffold(
@@ -98,7 +97,7 @@ fun ServiceRequestCard(request: SupportRequest, onClick: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = request.serviceNameSnapshot.ifBlank { "Soporte Técnico" },
+                    text = if (request.serviceNameSnapshot.isBlank()) "Soporte Técnico" else request.serviceNameSnapshot,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF111827)
@@ -106,8 +105,9 @@ fun ServiceRequestCard(request: SupportRequest, onClick: () -> Unit) {
                 StatusBadge(status = request.estado)
             }
             Spacer(modifier = Modifier.height(8.dp))
+            // Ofuscación visual para historial (opcional, aquí mostramos los primeros caracteres)
             Text(
-                text = request.problemDescription,
+                text = if (request.problemDescription.length > 50) request.problemDescription.take(50) + "..." else request.problemDescription,
                 fontSize = 14.sp,
                 color = Color.Gray,
                 maxLines = 2
@@ -124,9 +124,10 @@ fun ServiceRequestCard(request: SupportRequest, onClick: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = if(request.createdAt.isNotBlank()) "Creado: ${request.createdAt}" else "Reciente",
+                    text = "ID: #ST-${request.id}",
                     fontSize = 12.sp,
-                    color = Color.Gray
+                    color = Color.Gray,
+                    fontWeight = FontWeight.Medium
                 )
             }
         }
@@ -139,6 +140,7 @@ fun StatusBadge(status: String) {
         "finalizado" -> Color(0xFF10B981)
         "pagado" -> Color(0xFF3B82F6)
         "asignado" -> Color(0xFFF59E0B)
+        "pendiente" -> Color(0xFFEA580C)
         else -> Color.Gray
     }
     Surface(
@@ -163,7 +165,7 @@ fun EmptyHistoryView() {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
-            imageVector = Icons.Default.Assignment,
+            imageVector = Icons.AutoMirrored.Filled.Assignment,
             contentDescription = null,
             modifier = Modifier.size(64.dp),
             tint = Color.LightGray
