@@ -32,7 +32,7 @@ fun UserTypeSelectionScreen(onSelect: (String) -> Unit, onBack: () -> Unit) {
                 title = { 
                     Column { 
                         Text("Tipo de servicio", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text("Paso 1 de 10", fontSize = 13.sp, color = Color.Gray) 
+                        Text("Paso 1 de 6", fontSize = 13.sp, color = Color.Gray) 
                     } 
                 },
                 navigationIcon = { 
@@ -113,8 +113,7 @@ fun UserTypeCard(icon: ImageVector, title: String, description: String, iconBgCo
                 modifier = Modifier
                     .size(72.dp)
                     .background(brush = Brush.verticalGradient(iconBgColors), shape = RoundedCornerShape(16.dp)), 
-                contentAlignment = Alignment.Center
-            ) {
+                contentAlignment = Alignment.Center) {
                 Icon(imageVector = icon, contentDescription = title, tint = Color.White, modifier = Modifier.size(36.dp))
             }
             Column(modifier = Modifier.weight(1f)) {

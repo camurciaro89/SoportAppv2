@@ -66,5 +66,9 @@ data class SupportRequest(
     val requestStatus: String = "POR_PAGAR",
 
     @ColumnInfo(name = "tipo_cliente_id")
-    val clientTypeId: String = ""
+    val clientTypeId: String = "",
+
+    // NUEVO: Código de seguridad dinámico (OTP)
+    @ColumnInfo(name = "codigo_seguridad")
+    val securityCode: String = ""
 )

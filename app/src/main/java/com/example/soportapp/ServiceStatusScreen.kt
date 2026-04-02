@@ -63,7 +63,7 @@ fun ServiceStatusScreen(
                 title = {
                     Column {
                         Text("Estado del servicio", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text("Paso 9 de 10", fontSize = 13.sp, color = Color.Gray)
+                        Text("Paso 5 de 6", fontSize = 13.sp, color = Color.Gray)
                     }
                 },
                 navigationIcon = {
@@ -77,7 +77,6 @@ fun ServiceStatusScreen(
         floatingActionButton = {
             if (uiState is ServiceStatusUiState.Success) {
                 val request = (uiState as ServiceStatusUiState.Success).request
-                // Permitir finalizar si el pago está hecho o la identidad verificada
                 if (request.pagado || isIdentityVerified) {
                     ExtendedFloatingActionButton(
                         onClick = onFinish,
@@ -102,13 +101,16 @@ fun ServiceStatusScreen(
                 is ServiceStatusUiState.Success -> {
                     val request = state.request
                     
+                    // Lógica de precio dinámico según modalidad
+                    val servicePrice = if (request.modalidad.lowercase() == "remoto") 40000 else 70000
+                    
                     LazyColumn(
                         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         item { Spacer(modifier = Modifier.height(8.dp)) }
 
-                        // 1. CÓDIGO SEGURO (OTP)
+                        // 1. CÓDIGO SEGURO
                         item {
                             SecurityCodeCardFinal(
                                 code = "8429",
@@ -117,20 +119,21 @@ fun ServiceStatusScreen(
                             )
                         }
 
-                        // 2. MANERA EN QUE SE REALIZARÁ EL SERVICIO (Modalidad)
+                        // 2. MODALIDAD
                         item { ModalityStatusCard(request.modalidad) }
 
-                        // 3. MEDIO DE PAGO
+                        // 3. MEDIO DE PAGO DINÁMICO
                         item {
                             PaymentSummaryCard(
                                 isPaid = request.pagado,
-                                amount = 30000,
+                                amount = servicePrice,
+                                modality = request.modalidad,
                                 currencyFormatter = currencyFormatter,
                                 onPayClick = { showPaymentSheet = true }
                             )
                         }
 
-                        // 4. INFORMACIÓN DEL TÉCNICO (Opcional pero recomendado para confianza)
+                        // 4. INFO DEL TÉCNICO
                         item { AssignedTechnicianCardFinal(technician) }
 
                         item { Spacer(modifier = Modifier.height(100.dp)) }
@@ -139,8 +142,12 @@ fun ServiceStatusScreen(
             }
 
             if (showPaymentSheet) {
+                val currentModality = (uiState as? ServiceStatusUiState.Success)?.request?.modalidad ?: ""
+                val currentPrice = if (currentModality.lowercase() == "remoto") 40000 else 70000
+
                 PaymentBottomSheetFinal(
-                    amount = 30000,
+                    amount = currentPrice,
+                    modality = currentModality,
                     isProcessing = isProcessingPayment,
                     onConfirm = { isProcessingPayment = true },
                     onClose = { showPaymentSheet = false },
@@ -164,8 +171,8 @@ fun ServiceStatusScreen(
 fun ModalityStatusCard(modalidad: String) {
     val (title, icon, color) = when (modalidad.lowercase()) {
         "remoto" -> Triple("Soporte Remoto", Icons.Default.Devices, Color(0xFF7C3AED))
-        "sitio", "presencial" -> Triple("Servicio Presencial", Icons.Default.Home, Color(0xFF16A34A))
-        "taller", "recogida", "laboratorio" -> Triple("Recogida para Taller", Icons.Default.LocalShipping, Color(0xFFEA580C))
+        "sitio", "presencial", "en sitio" -> Triple("Servicio En Sitio", Icons.Default.Home, Color(0xFF16A34A))
+        "taller", "recogida", "centro diagnóstico", "centro diagnostico" -> Triple("Centro Diagnóstico", Icons.Default.Apartment, Color(0xFFEA580C))
         else -> Triple("Modalidad: $modalidad", Icons.Default.Info, Color(0xFF2563EB))
     }
 
@@ -189,7 +196,7 @@ fun ModalityStatusCard(modalidad: String) {
 }
 
 @Composable
-fun PaymentSummaryCard(isPaid: Boolean, amount: Int, currencyFormatter: NumberFormat, onPayClick: () -> Unit) {
+fun PaymentSummaryCard(isPaid: Boolean, amount: Int, modality: String, currencyFormatter: NumberFormat, onPayClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -205,8 +212,19 @@ fun PaymentSummaryCard(isPaid: Boolean, amount: Int, currencyFormatter: NumberFo
             
             if (!isPaid) {
                 Spacer(modifier = Modifier.height(12.dp))
-                Text("Costo del servicio (Diagnóstico/Domicilio):", fontSize = 13.sp, color = Color.Gray)
+                Text(if (modality.lowercase() == "remoto") "Valor del soporte remoto:" else "Valor de la revisión técnica:", fontSize = 13.sp, color = Color.Gray)
                 Text(currencyFormatter.format(amount), fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Color.Black)
+                
+                if (modality.lowercase() != "remoto") {
+                    Text(
+                        text = "Nota: Si autorizas la reparación, este valor se abonará al total del servicio.",
+                        fontSize = 11.sp,
+                        color = Color(0xFF166534),
+                        lineHeight = 14.sp,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+                
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
                     onClick = onPayClick,
@@ -261,8 +279,8 @@ fun AssignedTechnicianCardFinal(technician: Technician) {
 }
 
 @Composable
-fun PaymentBottomSheetFinal(amount: Int, isProcessing: Boolean, onConfirm: () -> Unit, onClose: () -> Unit, currencyFormatter: NumberFormat) {
-    var selectedMethod by remember { mutableStateOf("efectivo") }
+fun PaymentBottomSheetFinal(amount: Int, modality: String, isProcessing: Boolean, onConfirm: () -> Unit, onClose: () -> Unit, currencyFormatter: NumberFormat) {
+    var selectedMethod by remember { mutableStateOf(if (modality.lowercase() == "remoto") "qr" else "efectivo") }
     Surface(modifier = Modifier.fillMaxSize(), color = Color.Black.copy(alpha = 0.6f)) {
         Box(contentAlignment = Alignment.BottomCenter) {
             Card(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.75f), shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
@@ -277,11 +295,18 @@ fun PaymentBottomSheetFinal(amount: Int, isProcessing: Boolean, onConfirm: () ->
                         }
                     } else {
                         Spacer(modifier = Modifier.height(20.dp))
-                        PaymentMethodOptionFinal(title = "Efectivo", subtitle = "Pago directo al técnico", icon = Icons.Default.Payments, isSelected = selectedMethod == "efectivo", onClick = { selectedMethod = "efectivo" })
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Text("Valor a pagar: ${currencyFormatter.format(amount)}", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        if (modality.lowercase() != "remoto") {
+                            PaymentMethodOptionFinal(title = "Efectivo", subtitle = "Pago directo al técnico", icon = Icons.Default.Payments, isSelected = selectedMethod == "efectivo", onClick = { selectedMethod = "efectivo" })
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+                        
                         PaymentMethodOptionFinal(title = "QR Nequi / Bancolombia", subtitle = "Transferencia rápida", icon = Icons.Default.QrCodeScanner, isSelected = selectedMethod == "qr", onClick = { selectedMethod = "qr" })
                         Spacer(modifier = Modifier.height(12.dp))
                         PaymentMethodOptionFinal(title = "Wompi (PSE / Tarjetas)", subtitle = "Pago en línea seguro", icon = Icons.Default.CreditCard, isSelected = selectedMethod == "wompi", onClick = { selectedMethod = "wompi" })
+                        
                         Spacer(modifier = Modifier.weight(1f))
                         Button(onClick = onConfirm, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A))) {
                             Text("Confirmar y continuar", fontWeight = FontWeight.Bold)

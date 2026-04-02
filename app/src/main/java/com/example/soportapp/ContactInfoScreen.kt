@@ -45,7 +45,6 @@ fun ContactInfoScreen(
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
 
-    // VALIDACIÓN: El nombre debe tener al menos 3 letras y el celular 10 dígitos
     val isValid = name.trim().length >= 3 && phone.length == 10
 
     LaunchedEffect(supportRequestId) {
@@ -65,7 +64,7 @@ fun ContactInfoScreen(
                 title = {
                     Column {
                         Text("Datos de contacto", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text("Paso 7 de 10", fontSize = 13.sp, color = Color.Gray)
+                        Text("Paso 4 de 6", fontSize = 13.sp, color = Color.Gray)
                     }
                 },
                 navigationIcon = {
@@ -107,7 +106,6 @@ fun ContactInfoScreen(
 
                         Spacer(modifier = Modifier.height(32.dp))
 
-                        // CAMPO NOMBRE: SOLO LETRAS Y ESPACIOS
                         OutlinedTextField(
                             value = name,
                             onValueChange = { input ->
@@ -125,7 +123,6 @@ fun ContactInfoScreen(
 
                         Spacer(modifier = Modifier.height(20.dp))
 
-                        // CAMPO CELULAR: SOLO NÚMEROS (MAX 10)
                         OutlinedTextField(
                             value = phone,
                             onValueChange = { input ->
@@ -166,7 +163,7 @@ fun ContactInfoScreen(
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column {
                                     Text(
-                                        "Tu identidad oficial en TuTranquilo",
+                                        "Tu identidad oficial",
                                         fontWeight = FontWeight.ExtraBold,
                                         fontSize = 15.sp,
                                         color = Color(0xFF1E40AF)

@@ -79,7 +79,7 @@ fun ProblemDescriptionScreen(
                 title = {
                     Column {
                         Text("Registro de servicio", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text("Paso 3 de 10 - Gestión Técnica", fontSize = 13.sp, color = Color.Gray)
+                        Text("Paso 3 de 6 - Gestión Técnica", fontSize = 13.sp, color = Color.Gray)
                     }
                 },
                 navigationIcon = {
@@ -153,7 +153,7 @@ fun ProblemDescriptionScreen(
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        listOf("Remoto", "Sitio", "Taller").forEach { modality ->
+                        listOf("Remoto", "Sitio", "Centro Diagnóstico").forEach { modality ->
                             FilterChip(
                                 selected = selectedModality == modality,
                                 onClick = { selectedModality = modality },
@@ -218,7 +218,7 @@ fun ProblemDescriptionScreen(
                                 suggestedDay = day,
                                 suggestedTime = timeInput.text,
                                 clientTypeId = userType,
-                                modalidad = selectedModality, // Guardamos la modalidad seleccionada
+                                modalidad = selectedModality,
                                 estado = "Pendiente",
                                 requestStatus = "POR_PAGAR"
                             )
