@@ -10,6 +10,7 @@ import com.example.soportapp.data.repository.SoportAppRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlin.random.Random
 
 sealed interface ProblemDescriptionUiState {
     object Initial : ProblemDescriptionUiState
@@ -33,30 +34,29 @@ class ProblemDescriptionViewModel(private val repository: SoportAppRepository) :
         viewModelScope.launch {
             _uiState.value = ProblemDescriptionUiState.Loading
             try {
-                // 1. Obtener nombre del servicio con fallback
                 var serviceName = "Soporte Técnico"
                 try {
                     val service = repository.getServiceById(request.serviceCatalogId)
                     if (service != null) serviceName = service.visibleName
                 } catch (e: Exception) {
-                    Log.w("SoportApp", "Catálogo no listo, usando genérico")
+                    Log.w("SoportApp", "Catálogo no listo")
                 }
                 
-                // 2. Preparar datos
+                // GENERACIÓN DE CÓDIGO OTP ALEATORIO (4 DÍGITOS)
+                val randomCode = Random.nextInt(1000, 9999).toString()
+
                 val finalRequest = request.copy(
                     problemDescription = sanitizeInput(request.problemDescription),
                     serviceAddress = sanitizeInput(request.serviceAddress),
                     serviceNameSnapshot = serviceName,
+                    securityCode = randomCode, // Guardamos el código dinámico
                     createdAt = System.currentTimeMillis().toString(),
                     estado = "Pendiente",
                     requestStatus = "POR_PAGAR"
                 )
 
-                // 3. Insertar solicitud
-                Log.d("SoportApp", "Intentando guardado local seguro...")
                 val supportRequestId = repository.insertSupportRequest(finalRequest)
                 
-                // 4. Fotos
                 if (photos.isNotEmpty()) {
                     try {
                         val photoEntities = photos.map {
@@ -75,16 +75,8 @@ class ProblemDescriptionViewModel(private val repository: SoportAppRepository) :
                 _uiState.value = ProblemDescriptionUiState.Success(supportRequestId)
 
             } catch (e: Exception) {
-                // LOG DETALLADO PARA NOSOTROS
-                Log.e("SoportApp", "FALLO CRÍTICO EN GUARDADO: ${e.message}", e)
-                
-                // MENSAJE PARA EL USUARIO
-                val errorMsg = when {
-                    e.message?.contains("passphrase", ignoreCase = true) == true -> "Error de llave de seguridad. Reinstala la app."
-                    e.message?.contains("database", ignoreCase = true) == true -> "Error de base de datos segura."
-                    else -> "No se pudo guardar la solicitud. Reintenta."
-                }
-                _uiState.value = ProblemDescriptionUiState.Error(errorMsg)
+                Log.e("SoportApp", "FALLO EN GUARDADO: ${e.message}", e)
+                _uiState.value = ProblemDescriptionUiState.Error("No se pudo guardar la solicitud. Reinstala la app.")
             }
         }
     }

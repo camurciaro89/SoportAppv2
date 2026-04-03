@@ -1,5 +1,7 @@
 package com.example.soportapp
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -28,6 +30,7 @@ import com.example.soportapp.ui.viewmodel.ServiceStatusUiState
 import com.example.soportapp.ui.viewmodel.ServiceStatusViewModel
 import com.example.soportapp.ui.viewmodel.ServiceStatusViewModelFactory
 import kotlinx.coroutines.delay
+import java.net.URLEncoder
 import java.text.NumberFormat
 import java.util.*
 
@@ -39,7 +42,8 @@ fun ServiceStatusScreen(
     onBack: () -> Unit,
     onFinish: () -> Unit
 ) {
-    val application = LocalContext.current.applicationContext as SoportApplication
+    val context = LocalContext.current
+    val application = context.applicationContext as SoportApplication
     val viewModel: ServiceStatusViewModel = viewModel(
         factory = ServiceStatusViewModelFactory(application.container.soportAppRepository)
     )
@@ -100,8 +104,6 @@ fun ServiceStatusScreen(
                 is ServiceStatusUiState.Error -> Text(state.message, modifier = Modifier.align(Alignment.Center))
                 is ServiceStatusUiState.Success -> {
                     val request = state.request
-                    
-                    // Lógica de precio dinámico según modalidad
                     val servicePrice = if (request.modalidad.lowercase() == "remoto") 40000 else 70000
                     
                     LazyColumn(
@@ -110,19 +112,52 @@ fun ServiceStatusScreen(
                     ) {
                         item { Spacer(modifier = Modifier.height(8.dp)) }
 
-                        // 1. CÓDIGO SEGURO
+                        // 1. CÓDIGO SEGURO Y BOTÓN WHATSAPP
                         item {
-                            SecurityCodeCardFinal(
-                                code = "8429",
-                                isVerified = isIdentityVerified,
-                                onSimulateVerify = { isIdentityVerified = true }
-                            )
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                SecurityCodeCardFinal(
+                                    code = request.securityCode.ifEmpty { "----" },
+                                    isVerified = isIdentityVerified,
+                                    onSimulateVerify = { isIdentityVerified = true }
+                                )
+                                
+                                // BOTÓN PARA ENVIAR WHATSAPP (Solo si no está verificado)
+                                if (!isIdentityVerified) {
+                                    Button(
+                                        onClick = {
+                                            val message = """
+                                                Hola, soy Camilo de AP320. 🛠️
+                                                
+                                                He registrado tu servicio con éxito. Aquí tienes la información clave:
+                                                🛡️ Código de Seguridad: ${request.securityCode}
+                                                📍 Modalidad: ${request.modalidad}
+                                                💰 Valor a pagar: ${currencyFormatter.format(servicePrice)}
+                                                
+                                                Recuerda dictarme el código al llegar para iniciar el servicio.
+                                            """.trimIndent()
+                                            
+                                            val url = "https://wa.me/?text=${URLEncoder.encode(message, "UTF-8")}"
+                                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                                data = Uri.parse(url)
+                                            }
+                                            context.startActivity(intent)
+                                        },
+                                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366)), // Color WhatsApp
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Icon(Icons.Default.Share, null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text("Enviar Info por WhatsApp", fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
                         }
 
                         // 2. MODALIDAD
                         item { ModalityStatusCard(request.modalidad) }
 
-                        // 3. MEDIO DE PAGO DINÁMICO
+                        // 3. MEDIO DE PAGO
                         item {
                             PaymentSummaryCard(
                                 isPaid = request.pagado,
