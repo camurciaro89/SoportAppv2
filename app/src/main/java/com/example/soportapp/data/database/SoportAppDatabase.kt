@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
         EvidencePhoto::class,
         TechnicianAssignment::class
     ],
-    version = 7, // Incrementamos versión para forzar limpieza
+    version = 8, // Subimos a versión 8 para forzar actualización
     exportSchema = false
 )
 abstract class SoportAppDatabase : RoomDatabase() {
@@ -49,29 +49,15 @@ abstract class SoportAppDatabase : RoomDatabase() {
         }
 
         suspend fun populateDatabase(db: SoportAppDatabase) {
-            val technicianDao = db.technicianDao()
-            technicianDao.insert(
-                Technician(
-                    id = 1,
-                    nombre = "Camilo Andrés Murcia",
-                    especialidad = "Microinformática",
-                    photoUrl = "",
-                    professionalTitle = "Especialista en Microinformática",
-                    isVerified = true,
-                    averageRating = 4.9f,
-                    totalServices = 150
+            try {
+                val serviceCatalogDao = db.serviceCatalogDao()
+                val services = listOf(
+                    ServiceCatalog("soporte-computadores", "general", "Soporte técnico", "Reparación y mantenimiento", "Remoto o sitio", "monitor", "#2563EB", "#DBEAFE"),
+                    ServiceCatalog("mantenimiento-preventivo-empresarial", "empresa", "Mantenimiento empresarial", "Revisión programada", "En sitio", "settings", "#16A34A", "#DCFCE7"),
+                    ServiceCatalog("diagnostico-tecnico-empresarial", "general", "Diagnóstico técnico", "Evaluación técnica", "Remoto o sitio", "search", "#EA580C", "#FFF7ED")
                 )
-            )
-
-            val serviceCatalogDao = db.serviceCatalogDao()
-            val services = listOf(
-                ServiceCatalog("soporte-computadores", "general", "Soporte técnico", "Reparación y mantenimiento", "Remoto o sitio", "monitor", "#2563EB", "#DBEAFE"),
-                ServiceCatalog("mantenimiento-preventivo-empresarial", "empresa", "Mantenimiento empresarial", "Revisión programada", "En sitio", "settings", "#16A34A", "#DCFCE7"),
-                ServiceCatalog("diagnostico-tecnico-empresarial", "general", "Diagnóstico técnico", "Evaluación técnica", "Remoto o sitio", "search", "#EA580C", "#FFF7ED"),
-                ServiceCatalog("soporte-m365", "empresa", "Soporte Microsoft 365", "Configuración nube", "Remoto", "cloud", "#2563EB", "#DBEAFE"),
-                ServiceCatalog("seguridad-informatica", "empresa", "Seguridad informática", "Antivirus y protección", "Remoto", "security", "#DC2626", "#FEE2E2")
-            )
-            serviceCatalogDao.insertAll(services)
+                serviceCatalogDao.insertAll(services)
+            } catch (e: Exception) { }
         }
     }
 
@@ -86,8 +72,8 @@ abstract class SoportAppDatabase : RoomDatabase() {
                     SoportAppDatabase::class.java,
                     "soportapp_database"
                 )
+                .fallbackToDestructiveMigration() // Si la versión cambia, borra y crea
                 .addCallback(SoportAppDatabaseCallback(scope))
-                .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
                 instance
