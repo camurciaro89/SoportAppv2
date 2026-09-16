@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarOutline
 import androidx.compose.material3.*
@@ -26,6 +27,7 @@ import com.example.soportapp.ui.viewmodel.RatingUiState
 import com.example.soportapp.ui.viewmodel.RatingViewModel
 import com.example.soportapp.ui.viewmodel.RatingViewModelFactory
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RatingScreen(
     supportRequestId: Long,
@@ -48,6 +50,22 @@ fun RatingScreen(
     }
 
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { 
+                    Column {
+                        Text("Calificar servicio", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("Paso 10 de 10", fontSize = 13.sp, color = Color.Gray)
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onFinish) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Regresar")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+            )
+        },
         containerColor = Color.White
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {

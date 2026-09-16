@@ -89,43 +89,12 @@ fun SoportApp() {
             ProblemDescriptionScreen(
                 userType = userType,
                 serviceId = serviceId,
-                onContinue = { supportRequestId -> navController.navigate("serviceModality/$supportRequestId") },
+                // Salta directamente a contacto (Paso 6 real)
+                onContinue = { supportRequestId -> navController.navigate("contactInfo/$supportRequestId") },
                 onBack = { navController.popBackStack() }
             )
         }
-        composable(
-            "serviceModality/{supportRequestId}",
-            arguments = listOf(navArgument("supportRequestId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            val supportRequestId = backStackEntry.arguments?.getLong("supportRequestId") ?: -1
-            ServiceModalityScreen(
-                supportRequestId = supportRequestId,
-                onContinue = { newSupportRequestId -> navController.navigate("serviceSummary/$newSupportRequestId") },
-                onBack = { navController.popBackStack() }
-            )
-        }
-        composable(
-            "serviceSummary/{supportRequestId}",
-            arguments = listOf(navArgument("supportRequestId") { type = NavType.LongType })
-        ) { backStackEntry ->
-             val supportRequestId = backStackEntry.arguments?.getLong("supportRequestId") ?: -1
-            ServiceSummaryScreen(
-                supportRequestId = supportRequestId,
-                onConfirm = { newSupportRequestId -> navController.navigate("payment/$newSupportRequestId") },
-                onBack = { navController.popBackStack() }
-            )
-        }
-        composable(
-            "payment/{supportRequestId}",
-            arguments = listOf(navArgument("supportRequestId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            val supportRequestId = backStackEntry.arguments?.getLong("supportRequestId") ?: -1
-            PaymentScreen(
-                supportRequestId = supportRequestId,
-                onPaymentSuccess = { newSupportRequestId -> navController.navigate("contactInfo/$newSupportRequestId") },
-                onBack = { navController.popBackStack() }
-            )
-        }
+        
         composable(
             "contactInfo/{supportRequestId}",
             arguments = listOf(navArgument("supportRequestId") { type = NavType.LongType })
@@ -133,24 +102,14 @@ fun SoportApp() {
             val supportRequestId = backStackEntry.arguments?.getLong("supportRequestId") ?: -1
             ContactInfoScreen(
                 supportRequestId = supportRequestId,
+                // CAMBIO: Salta directamente al Estado del Servicio (Paso 9), quitando la asignación automática
                 onContinue = { newSupportRequestId -> 
-                    navController.navigate("technicianAssignment/$newSupportRequestId") 
+                    navController.navigate("serviceStatus/$newSupportRequestId") 
                 },
                 onBack = { navController.popBackStack() }
             )
         }
-        composable(
-            "technicianAssignment/{supportRequestId}",
-            arguments = listOf(navArgument("supportRequestId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            val supportRequestId = backStackEntry.arguments?.getLong("supportRequestId") ?: -1
-            TechnicianAssignmentScreen(
-                supportRequestId = supportRequestId,
-                technician = technician,
-                onContinue = { newSupportRequestId -> navController.navigate("serviceStatus/$newSupportRequestId") },
-                onBack = { navController.popBackStack() }
-            )
-        }
+
         composable(
             "serviceStatus/{supportRequestId}",
             arguments = listOf(navArgument("supportRequestId") { type = NavType.LongType })
@@ -280,13 +239,5 @@ fun WelcomeScreen(onStart: () -> Unit, onHistory: () -> Unit) {
                 modifier = Modifier.padding(bottom = 32.dp)
             )
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun WelcomeScreenPreview() {
-    SoportAppTheme {
-        WelcomeScreen(onStart = {}, onHistory = {})
     }
 }

@@ -48,7 +48,7 @@ fun ServiceSelectionScreen(
                 title = {
                     Column {
                         Text("Seleccionar servicio", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text("Paso 2 de 10", fontSize = 13.sp, color = Color.Gray)
+                        Text("Paso 2 de 6", fontSize = 13.sp, color = Color.Gray)
                     }
                 },
                 navigationIcon = {

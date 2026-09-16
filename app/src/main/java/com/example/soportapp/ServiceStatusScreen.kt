@@ -1,5 +1,7 @@
 package com.example.soportapp
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -19,7 +21,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -29,8 +30,9 @@ import com.example.soportapp.ui.viewmodel.ServiceStatusUiState
 import com.example.soportapp.ui.viewmodel.ServiceStatusViewModel
 import com.example.soportapp.ui.viewmodel.ServiceStatusViewModelFactory
 import kotlinx.coroutines.delay
+import java.net.URLEncoder
 import java.text.NumberFormat
-import java.util.Locale
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,7 +42,8 @@ fun ServiceStatusScreen(
     onBack: () -> Unit,
     onFinish: () -> Unit
 ) {
-    val application = LocalContext.current.applicationContext as SoportApplication
+    val context = LocalContext.current
+    val application = context.applicationContext as SoportApplication
     val viewModel: ServiceStatusViewModel = viewModel(
         factory = ServiceStatusViewModelFactory(application.container.soportAppRepository)
     )
@@ -48,13 +51,13 @@ fun ServiceStatusScreen(
 
     var showPaymentSheet by remember { mutableStateOf(false) }
     var isProcessingPayment by remember { mutableStateOf(false) }
+    var isIdentityVerified by remember { mutableStateOf(false) }
 
-    val localeCO = Locale.forLanguageTag("es-CO")
-    val currencyFormatter = NumberFormat.getCurrencyInstance(localeCO).apply {
+    val currencyFormatter = NumberFormat.getCurrencyInstance(Locale("es", "CO")).apply {
         maximumFractionDigits = 0
     }
 
-    LaunchedEffect(supportRequestId) {
+    LaunchedEffect(Unit) {
         viewModel.loadRequest(supportRequestId)
     }
 
@@ -63,8 +66,8 @@ fun ServiceStatusScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Seguimiento del servicio", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text("Paso 9 de 10", fontSize = 13.sp, color = Color.Gray)
+                        Text("Estado del servicio", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("Paso 5 de 6", fontSize = 13.sp, color = Color.Gray)
                     }
                 },
                 navigationIcon = {
@@ -75,54 +78,111 @@ fun ServiceStatusScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         },
-        bottomBar = {
-            Surface(modifier = Modifier.fillMaxWidth(), color = Color.White, shadowElevation = 12.dp) {
-                Box(modifier = Modifier.padding(20.dp)) {
-                    Button(
+        floatingActionButton = {
+            if (uiState is ServiceStatusUiState.Success) {
+                val request = (uiState as ServiceStatusUiState.Success).request
+                if (request.pagado || isIdentityVerified) {
+                    ExtendedFloatingActionButton(
                         onClick = onFinish,
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A))
+                        containerColor = Color(0xFF2563EB),
+                        contentColor = Color.White,
+                        shape = RoundedCornerShape(16.dp)
                     ) {
-                        Text("Finalizar servicio y calificar", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.Star, null)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text("Finalizar y Calificar", fontWeight = FontWeight.Bold)
                     }
                 }
             }
         },
+        floatingActionButtonPosition = FabPosition.Center,
         containerColor = Color(0xFFF9FAFB)
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+        Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
             when (val state = uiState) {
-                is ServiceStatusUiState.Loading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                }
-                is ServiceStatusUiState.Error -> {
-                    Text(text = state.message, modifier = Modifier.align(Alignment.Center))
-                }
+                is ServiceStatusUiState.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                is ServiceStatusUiState.Error -> Text(state.message, modifier = Modifier.align(Alignment.Center))
                 is ServiceStatusUiState.Success -> {
                     val request = state.request
+                    val servicePrice = if (request.modalidad.lowercase() == "remoto") 40000 else 70000
+                    
                     LazyColumn(
                         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         item { Spacer(modifier = Modifier.height(8.dp)) }
 
-                        item { StatusHeaderCardLocal(request) }
-
+                        // 1. CÓDIGO SEGURO Y BOTÓN WHATSAPP
                         item {
-                            EvaluationPendingCardLocal()
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                SecurityCodeCardFinal(
+                                    code = request.securityCode.ifEmpty { "----" },
+                                    isVerified = isIdentityVerified,
+                                    onSimulateVerify = { isIdentityVerified = true }
+                                )
+                                
+                                // BOTÓN PARA ENVIAR WHATSAPP (Solo si no está verificado)
+                                if (!isIdentityVerified) {
+                                    Button(
+                                        onClick = {
+                                            val message = """
+                                                Hola, soy Camilo de AP320. 🛠️
+                                                
+                                                He registrado tu servicio con éxito. Aquí tienes la información clave:
+                                                🛡️ Código de Seguridad: ${request.securityCode}
+                                                📍 Modalidad: ${request.modalidad}
+                                                💰 Valor a pagar: ${currencyFormatter.format(servicePrice)}
+                                                
+                                                Recuerda dictarme el código al llegar para iniciar el servicio.
+                                            """.trimIndent()
+                                            
+                                            val url = "https://wa.me/?text=${URLEncoder.encode(message, "UTF-8")}"
+                                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                                data = Uri.parse(url)
+                                            }
+                                            context.startActivity(intent)
+                                        },
+                                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366)), // Color WhatsApp
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Icon(Icons.Default.Share, null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text("Enviar Info por WhatsApp", fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
                         }
 
-                        item { AssignedTechnicianCardLocal(technician) }
-                        item { TimelineCardLocal(request) }
-                        item { Spacer(modifier = Modifier.height(32.dp)) }
+                        // 2. MODALIDAD
+                        item { ModalityStatusCard(request.modalidad) }
+
+                        // 3. MEDIO DE PAGO
+                        item {
+                            PaymentSummaryCard(
+                                isPaid = request.pagado,
+                                amount = servicePrice,
+                                modality = request.modalidad,
+                                currencyFormatter = currencyFormatter,
+                                onPayClick = { showPaymentSheet = true }
+                            )
+                        }
+
+                        // 4. INFO DEL TÉCNICO
+                        item { AssignedTechnicianCardFinal(technician) }
+
+                        item { Spacer(modifier = Modifier.height(100.dp)) }
                     }
                 }
             }
 
             if (showPaymentSheet) {
-                PaymentBottomSheetLocal(
-                    amount = 30000,
+                val currentModality = (uiState as? ServiceStatusUiState.Success)?.request?.modalidad ?: ""
+                val currentPrice = if (currentModality.lowercase() == "remoto") 40000 else 70000
+
+                PaymentBottomSheetFinal(
+                    amount = currentPrice,
+                    modality = currentModality,
                     isProcessing = isProcessingPayment,
                     onConfirm = { isProcessingPayment = true },
                     onClose = { showPaymentSheet = false },
@@ -131,8 +191,8 @@ fun ServiceStatusScreen(
 
                 if (isProcessingPayment) {
                     LaunchedEffect(Unit) {
-                        delay(2500)
-                        viewModel.updateExtraPaid(supportRequestId)
+                        delay(2000)
+                        viewModel.updateRequestStatus(supportRequestId, true, false)
                         isProcessingPayment = false
                         showPaymentSheet = false
                     }
@@ -143,72 +203,148 @@ fun ServiceStatusScreen(
 }
 
 @Composable
-fun StatusHeaderCardLocal(request: SupportRequest) {
-    val stateLabel = request.estado
-    val color = Color(0xFF16A34A)
-    val icon = Icons.Default.CheckCircle
+fun ModalityStatusCard(modalidad: String) {
+    val (title, icon, color) = when (modalidad.lowercase()) {
+        "remoto" -> Triple("Soporte Remoto", Icons.Default.Devices, Color(0xFF7C3AED))
+        "sitio", "presencial", "en sitio" -> Triple("Servicio En Sitio", Icons.Default.Home, Color(0xFF16A34A))
+        "taller", "recogida", "centro diagnóstico", "centro diagnostico" -> Triple("Centro Diagnóstico", Icons.Default.Apartment, Color(0xFFEA580C))
+        else -> Triple("Modalidad: $modalidad", Icons.Default.Info, Color(0xFF2563EB))
+    }
 
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, color.copy(alpha = 0.2f))) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.2f))
+    ) {
         Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(48.dp).background(color.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) { Icon(icon, null, tint = color) }
-            Spacer(modifier = Modifier.width(16.dp)); Column { Text(stateLabel, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = color); Text("Actualizado ahora", fontSize = 12.sp, color = Color.Gray) }
+            Box(modifier = Modifier.size(48.dp).background(color.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) {
+                Icon(icon, null, tint = color)
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text("Cómo atenderemos tu servicio:", fontSize = 12.sp, color = Color.Gray)
+                Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = color)
+            }
         }
     }
 }
 
 @Composable
-fun EvaluationPendingCardLocal() {
-    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White)) {
-        Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) { CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 3.dp, color = Color.Gray); Spacer(modifier = Modifier.height(16.dp)); Text("Analizando tu falla...", textAlign = TextAlign.Center, fontSize = 15.sp, color = Color.DarkGray) }
+fun PaymentSummaryCard(isPaid: Boolean, amount: Int, modality: String, currencyFormatter: NumberFormat, onPayClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = if (isPaid) Color(0xFFF0FDF4) else Color.White),
+        border = BorderStroke(1.dp, if (isPaid) Color(0xFFDCFCE7) else Color(0xFFE5E7EB))
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(if (isPaid) Icons.Default.CheckCircle else Icons.Default.Payments, null, tint = if (isPaid) Color(0xFF16A34A) else Color(0xFF2563EB))
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(if (isPaid) "Pago Confirmado" else "Pendiente de Pago", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
+            
+            if (!isPaid) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(if (modality.lowercase() == "remoto") "Valor del soporte remoto:" else "Valor de la revisión técnica:", fontSize = 13.sp, color = Color.Gray)
+                Text(currencyFormatter.format(amount), fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Color.Black)
+                
+                if (modality.lowercase() != "remoto") {
+                    Text(
+                        text = "Nota: Si autorizas la reparación, este valor se abonará al total del servicio.",
+                        fontSize = 11.sp,
+                        color = Color(0xFF166534),
+                        lineHeight = 14.sp,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = onPayClick,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A))
+                ) {
+                    Text("Seleccionar medio de pago")
+                }
+            } else {
+                Text("El pago ha sido registrado exitosamente.", fontSize = 14.sp, color = Color(0xFF166534), modifier = Modifier.padding(top = 8.dp))
+            }
+        }
     }
 }
 
 @Composable
-fun AssignedTechnicianCardLocal(technician: Technician) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFF3F4F6))) { Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) { Box(modifier = Modifier.size(56.dp).background(Color(0xFFF1F5F9), CircleShape).clip(CircleShape), contentAlignment = Alignment.Center) { Icon(Icons.Default.Person, null, tint = Color.LightGray, modifier = Modifier.size(32.dp)) }; Spacer(modifier = Modifier.width(16.dp)); Column { Text(technician.name, fontSize = 16.sp, fontWeight = FontWeight.Bold); Text("Técnico asignado", fontSize = 12.sp, color = Color(0xFF2563EB)) } } }
+fun SecurityCodeCardFinal(code: String, isVerified: Boolean, onSimulateVerify: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = if (isVerified) Color(0xFF059669) else Color(0xFF1E293B)),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(if (isVerified) "IDENTIDAD VERIFICADA" else "CÓDIGO DE SEGURIDAD", color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+            Spacer(modifier = Modifier.height(8.dp))
+            if (isVerified) {
+                Icon(Icons.Default.VerifiedUser, null, tint = Color.White, modifier = Modifier.size(40.dp))
+            } else {
+                Text(code, color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 8.sp)
+                Text("Dile este código al técnico al llegar.", color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp, textAlign = TextAlign.Center)
+                TextButton(onClick = onSimulateVerify) { Text("Simular Verificación", color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp) }
+            }
+        }
+    }
 }
 
 @Composable
-fun TimelineCardLocal(request: SupportRequest) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFF3F4F6))) { Column(modifier = Modifier.padding(20.dp)) { Text("Estado del proceso", fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 16.dp)); TimelineItemLocal("Pago base recibido", request.pagado, true); TimelineItemLocal("Evaluación técnica", true, true); TimelineItemLocal("Ejecución del servicio", false, false) } }
+fun AssignedTechnicianCardFinal(technician: Technician) {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFF3F4F6))) {
+        Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(48.dp).background(Color(0xFFF1F5F9), CircleShape).clip(CircleShape), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.Person, null, tint = Color.LightGray)
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(technician.name, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("Técnico experto asignado", fontSize = 12.sp, color = Color(0xFF2563EB))
+            }
+        }
+    }
 }
 
 @Composable
-fun TimelineItemLocal(text: String, isDone: Boolean, showLine: Boolean) {
-    Row { Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(if (isDone) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked, null, tint = if (isDone) Color(0xFF16A34A) else Color.LightGray, modifier = Modifier.size(20.dp)); if (showLine) Box(modifier = Modifier.width(2.dp).height(24.dp).background(Color.LightGray.copy(alpha = 0.5f))) }; Text(text, fontSize = 14.sp, color = if (isDone) Color.Black else Color.Gray, modifier = Modifier.padding(start = 12.dp, top = 2.dp)) }
-}
-
-@Composable
-fun PaymentBottomSheetLocal(amount: Int, isProcessing: Boolean, onConfirm: () -> Unit, onClose: () -> Unit, currencyFormatter: NumberFormat) {
-    var selectedMethod by remember { mutableStateOf("qr") }
+fun PaymentBottomSheetFinal(amount: Int, modality: String, isProcessing: Boolean, onConfirm: () -> Unit, onClose: () -> Unit, currencyFormatter: NumberFormat) {
+    var selectedMethod by remember { mutableStateOf(if (modality.lowercase() == "remoto") "qr" else "efectivo") }
     Surface(modifier = Modifier.fillMaxSize(), color = Color.Black.copy(alpha = 0.6f)) {
         Box(contentAlignment = Alignment.BottomCenter) {
-            Card(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.85f), shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+            Card(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.75f), shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
                 Column(modifier = Modifier.padding(24.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text("Confirmar pago adicional", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        Text("Medio de Pago", fontSize = 20.sp, fontWeight = FontWeight.Bold)
                         IconButton(onClick = onClose) { Icon(Icons.Default.Close, null) }
                     }
                     if (isProcessing) {
-                        Column(modifier = Modifier.fillMaxSize().weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                            CircularProgressIndicator(color = Color(0xFF2563EB), strokeWidth = 6.dp)
-                            Spacer(modifier = Modifier.height(24.dp))
-                            Text("Verificando pago seguro...", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                            Text("Conectando con tu entidad bancaria.", color = Color.Gray)
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
                         }
                     } else {
-                        Spacer(modifier = Modifier.height(24.dp))
-                        Text("Valor a pagar: ${currencyFormatter.format(amount)}", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF2563EB))
-                        Text("Concepto: Traslado técnico especializado", color = Color.Gray, fontSize = 14.sp)
-                        Spacer(modifier = Modifier.height(32.dp))
-                        Text("Selecciona tu opción de pago", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Text("Valor a pagar: ${currencyFormatter.format(amount)}", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        if (modality.lowercase() != "remoto") {
+                            PaymentMethodOptionFinal(title = "Efectivo", subtitle = "Pago directo al técnico", icon = Icons.Default.Payments, isSelected = selectedMethod == "efectivo", onClick = { selectedMethod = "efectivo" })
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+                        
+                        PaymentMethodOptionFinal(title = "QR Nequi / Bancolombia", subtitle = "Transferencia rápida", icon = Icons.Default.QrCodeScanner, isSelected = selectedMethod == "qr", onClick = { selectedMethod = "qr" })
                         Spacer(modifier = Modifier.height(12.dp))
-                        PaymentMethodOptionLocal(title = "QR Bancolombia / Nequi", subtitle = "Pago rápido desde tu celular", icon = Icons.Default.QrCodeScanner, isSelected = selectedMethod == "qr", onClick = { selectedMethod = "qr" })
-                        Spacer(modifier = Modifier.height(12.dp))
-                        PaymentMethodOptionLocal(title = "PSE / Tarjetas (Wompi)", subtitle = "Pago seguro bancario", icon = Icons.Default.VerifiedUser, isSelected = selectedMethod == "wompi", onClick = { selectedMethod = "wompi" })
+                        PaymentMethodOptionFinal(title = "Wompi (PSE / Tarjetas)", subtitle = "Pago en línea seguro", icon = Icons.Default.CreditCard, isSelected = selectedMethod == "wompi", onClick = { selectedMethod = "wompi" })
+                        
                         Spacer(modifier = Modifier.weight(1f))
-                        Button(onClick = onConfirm, modifier = Modifier.fillMaxWidth().height(60.dp), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A))) {
-                            Text("Realizar pago seguro", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        Button(onClick = onConfirm, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A))) {
+                            Text("Confirmar y continuar", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -218,32 +354,15 @@ fun PaymentBottomSheetLocal(amount: Int, isProcessing: Boolean, onConfirm: () ->
 }
 
 @Composable
-fun PaymentMethodOptionLocal(title: String, subtitle: String, icon: ImageVector, isSelected: Boolean, onClick: () -> Unit) {
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = if (isSelected) Color(0xFFEFF6FF) else Color.White), border = BorderStroke(width = if (isSelected) 2.dp else 1.dp, color = if (isSelected) Color(0xFF2563EB) else Color(0xFFE5E7EB))) {
+fun PaymentMethodOptionFinal(title: String, subtitle: String, icon: ImageVector, isSelected: Boolean, onClick: () -> Unit) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = if (isSelected) Color(0xFFEFF6FF) else Color.White), border = BorderStroke(1.dp, if (isSelected) Color(0xFF2563EB) else Color(0xFFE5E7EB))) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(48.dp).background(if (isSelected) Color(0xFFDBEAFE) else Color(0xFFF1F5F9), RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.size(40.dp).background(if (isSelected) Color(0xFFDBEAFE) else Color(0xFFF1F5F9), RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
                 Icon(icon, null, tint = if (isSelected) Color(0xFF2563EB) else Color.Gray)
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) { Text(title, fontWeight = FontWeight.Bold, fontSize = 15.sp); Text(subtitle, fontSize = 12.sp, color = Color.Gray) }
             RadioButton(selected = isSelected, onClick = onClick)
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ServiceStatusScreenPreview() {
-    SoportAppTheme { 
-        val mockTechnician = Technician(
-            id = "camilo-murcia",
-            name = "Camilo Andrés Murcia Romero",
-            title = "Ingeniero de Sistemas",
-            experience = "15 años",
-            bio = "Especialista en mantenimiento",
-            totalServices = 542,
-            reviews = emptyList()
-        )
-        ServiceStatusScreen(supportRequestId = 1L, technician = mockTechnician, onBack = {}, onFinish = {}) 
     }
 }

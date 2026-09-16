@@ -1,8 +1,6 @@
 package com.example.soportapp
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -32,7 +31,7 @@ import com.example.soportapp.ui.viewmodel.ProblemDescriptionViewModelFactory
 fun ProblemDescriptionScreen(
     userType: String,
     serviceId: String,
-    onContinue: (Long) -> Unit, // Pass supportRequestId
+    onContinue: (Long) -> Unit,
     onBack: () -> Unit
 ) {
     val application = LocalContext.current.applicationContext as SoportApplication
@@ -44,6 +43,9 @@ fun ProblemDescriptionScreen(
     var location by remember { mutableStateOf(TextFieldValue("")) }
     var day by remember { mutableStateOf("Lunes") }
     var timeInput by remember { mutableStateOf(TextFieldValue("")) }
+    
+    // NUEVO: Estado para la modalidad seleccionada por el técnico
+    var selectedModality by remember { mutableStateOf("Remoto") }
 
     val daysOfWeek = listOf("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado")
     val photos = remember { mutableStateListOf<String>() }
@@ -58,8 +60,9 @@ fun ProblemDescriptionScreen(
     }
 
     val isValid = description.text.isNotBlank() && location.text.isNotBlank()
+    val descriptionLimit = 500
+    val locationLimit = 200
 
-    // Handle state changes and navigation
     LaunchedEffect(uiState) {
         when (val state = uiState) {
             is ProblemDescriptionUiState.Success -> onContinue(state.supportRequestId)
@@ -75,8 +78,8 @@ fun ProblemDescriptionScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Describe el problema", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text("Paso 3 de 10", fontSize = 13.sp, color = Color.Gray)
+                        Text("Registro de servicio", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("Paso 3 de 6 - Gestión Técnica", fontSize = 13.sp, color = Color.Gray)
                     }
                 },
                 navigationIcon = {
@@ -89,8 +92,8 @@ fun ProblemDescriptionScreen(
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         containerColor = Color(0xFFF9FAFB)
-    ) {
-        Box(modifier = Modifier.fillMaxSize().padding(it)) {
+    ) { paddingValues ->
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             LazyColumn(
                 modifier = Modifier
                     .padding(horizontal = 24.dp)
@@ -100,13 +103,16 @@ fun ProblemDescriptionScreen(
                 item { Spacer(modifier = Modifier.height(8.dp)) }
 
                 item {
-                    Text("¿Qué problema tienes? *", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text("Descripción del problema *", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     OutlinedTextField(
                         value = description,
-                        onValueChange = { description = it },
-                        placeholder = { Text("Ej: El computador no prende...", fontSize = 16.sp) },
+                        onValueChange = { if (it.text.length <= descriptionLimit) description = it },
+                        placeholder = { Text("Detalle técnico de la falla...", fontSize = 16.sp) },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 100.dp),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        supportingText = {
+                            Text(text = "${description.text.length} / $descriptionLimit", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.End)
+                        }
                     )
                 }
 
@@ -114,16 +120,19 @@ fun ProblemDescriptionScreen(
                     Text("Dirección del servicio *", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     OutlinedTextField(
                         value = location,
-                        onValueChange = { location = it },
-                        placeholder = { Text("Calle, número, ciudad", fontSize = 16.sp) },
+                        onValueChange = { if (it.text.length <= locationLimit) location = it },
+                        placeholder = { Text("Calle, número, barrio, ciudad", fontSize = 16.sp) },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
                         shape = RoundedCornerShape(12.dp),
-                        leadingIcon = { Icon(Icons.Default.LocationOn, null, modifier = Modifier.size(24.dp)) }
+                        leadingIcon = { Icon(Icons.Default.LocationOn, null, modifier = Modifier.size(24.dp)) },
+                        supportingText = {
+                            Text(text = "${location.text.length} / $locationLimit", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.End)
+                        }
                     )
                 }
 
                 item {
-                    Text("Fotos del equipo (opcional)", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text("Evidencia fotográfica (opcional)", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedButton(
                         onClick = { if (photos.size < 3) photos.add("photo_${System.currentTimeMillis()}") },
@@ -133,17 +142,34 @@ fun ProblemDescriptionScreen(
                     ) {
                         Icon(Icons.Default.PhotoCamera, null, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            if (photos.isEmpty()) "Adjuntar fotos o evidencia"
-                            else "Fotos adjuntadas (${photos.size}/3)",
-                            fontSize = 15.sp
-                        )
+                        Text(if (photos.isEmpty()) "Capturar evidencia" else "Fotos capturadas (${photos.size}/3)")
+                    }
+                }
+
+                // NUEVA SECCIÓN: Selección de Modalidad para el Técnico
+                item {
+                    Text("Modalidad de atención *", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("Remoto", "Sitio", "Centro Diagnóstico").forEach { modality ->
+                            FilterChip(
+                                selected = selectedModality == modality,
+                                onClick = { selectedModality = modality },
+                                label = { Text(modality) },
+                                leadingIcon = if (selectedModality == modality) {
+                                    { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                                } else null,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
                 }
 
                 item {
                     var expanded by remember { mutableStateOf(false) }
-                    Text("Día sugerido (opcional)", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text("Día programado", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     Box(modifier = Modifier.padding(top = 8.dp)) {
                         OutlinedCard(
                             onClick = { expanded = true },
@@ -151,28 +177,21 @@ fun ProblemDescriptionScreen(
                             shape = RoundedCornerShape(12.dp),
                             border = BorderStroke(1.dp, Color.Gray)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(20.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
+                            Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text(text = day, fontSize = 16.sp, fontWeight = FontWeight.Medium)
                                 Icon(Icons.Default.ArrowDropDown, null, modifier = Modifier.size(32.dp))
                             }
                         }
                         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                             daysOfWeek.forEach { selection ->
-                                DropdownMenuItem(
-                                    text = { Text(selection, fontSize = 16.sp) },
-                                    onClick = { day = selection; expanded = false }
-                                )
+                                DropdownMenuItem(text = { Text(selection, fontSize = 16.sp) }, onClick = { day = selection; expanded = false })
                             }
                         }
                     }
                 }
 
                 item {
-                    Text("Hora sugerida (opcional)", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text("Hora programada", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     OutlinedTextField(
                         value = timeInput,
                         onValueChange = { timeInput = it },
@@ -180,28 +199,13 @@ fun ProblemDescriptionScreen(
                         modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
                         shape = RoundedCornerShape(12.dp),
                         leadingIcon = { Icon(Icons.Default.AccessTime, null, modifier = Modifier.size(24.dp)) },
-                        isError = !isTimeValid && timeInput.text.isNotEmpty()
-                    )
-                }
-
-                item {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7ED)),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, Color(0xFFFED7AA))
-                    ) {
-                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Info, null, tint = Color(0xFFEA580C), modifier = Modifier.size(24.dp))
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = "Los servicios en domingos y festivos son excepcionales y requieren confirmación directa del técnico según disponibilidad.",
-                                fontSize = 13.sp,
-                                color = Color(0xFF9A3412),
-                                fontWeight = FontWeight.Medium,
-                                lineHeight = 18.sp
-                            )
+                        isError = !isTimeValid && timeInput.text.isNotEmpty(),
+                        supportingText = {
+                            val helpText = if (day == "Sábado") "Sábados: 8:00 AM a 11:00 AM" 
+                                          else "Lunes-Viernes: 8:00-13:00 y 14:00-19:00"
+                            Text(text = helpText, color = if (!isTimeValid && timeInput.text.isNotEmpty()) MaterialTheme.colorScheme.error else Color.Gray)
                         }
-                    }
+                    )
                 }
 
                 item {
@@ -214,19 +218,9 @@ fun ProblemDescriptionScreen(
                                 suggestedDay = day,
                                 suggestedTime = timeInput.text,
                                 clientTypeId = userType,
-                                // Set default values for fields to be filled in later steps
-                                ubicacion = location.text,
-                                modalidad = "",
+                                modalidad = selectedModality,
                                 estado = "Pendiente",
-                                createdAt = "",
-                                isHolidayException = false,
-                                pagado = false,
-                                reembolsado = false,
-                                suggestedModality = "",
-                                serviceNameSnapshot = "",
-                                finalDescription = "",
-                                confirmedAddress = "",
-                                requestStatus = "INCOMPLETO"
+                                requestStatus = "POR_PAGAR"
                             )
                             viewModel.saveProblemDescription(request, photos.toList())
                         },
@@ -235,7 +229,7 @@ fun ProblemDescriptionScreen(
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A))
                     ) {
-                        Text("Continuar", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("Continuar registro", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     }
                     Spacer(modifier = Modifier.height(24.dp))
                 }

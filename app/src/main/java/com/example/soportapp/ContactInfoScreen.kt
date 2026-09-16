@@ -64,7 +64,7 @@ fun ContactInfoScreen(
                 title = {
                     Column {
                         Text("Datos de contacto", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text("Paso 7 de 10", fontSize = 13.sp, color = Color.Gray)
+                        Text("Paso 4 de 6", fontSize = 13.sp, color = Color.Gray)
                     }
                 },
                 navigationIcon = {
@@ -108,7 +108,11 @@ fun ContactInfoScreen(
 
                         OutlinedTextField(
                             value = name,
-                            onValueChange = { name = it },
+                            onValueChange = { input ->
+                                if (input.all { it.isLetter() || it.isWhitespace() }) {
+                                    name = input
+                                }
+                            },
                             label = { Text("Nombre completo") },
                             placeholder = { Text("Ej: Juan Pérez") },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
@@ -121,7 +125,11 @@ fun ContactInfoScreen(
 
                         OutlinedTextField(
                             value = phone,
-                            onValueChange = { if (it.length <= 10) phone = it.filter { char -> char.isDigit() } },
+                            onValueChange = { input ->
+                                if (input.length <= 10 && input.all { it.isDigit() }) {
+                                    phone = input
+                                }
+                            },
                             label = { Text("Número de celular") },
                             placeholder = { Text("300 123 4567") },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
@@ -155,7 +163,7 @@ fun ContactInfoScreen(
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column {
                                     Text(
-                                        "Tu identidad oficial en TuTranquilo",
+                                        "Tu identidad oficial",
                                         fontWeight = FontWeight.ExtraBold,
                                         fontSize = 15.sp,
                                         color = Color(0xFF1E40AF)

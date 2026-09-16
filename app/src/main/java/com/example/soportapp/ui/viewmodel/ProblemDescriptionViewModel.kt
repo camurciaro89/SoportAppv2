@@ -10,8 +10,8 @@ import com.example.soportapp.data.repository.SoportAppRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlin.random.Random
 
-// UI State for ProblemDescriptionScreen
 sealed interface ProblemDescriptionUiState {
     object Initial : ProblemDescriptionUiState
     object Loading : ProblemDescriptionUiState
@@ -24,30 +24,39 @@ class ProblemDescriptionViewModel(private val repository: SoportAppRepository) :
     private val _uiState = MutableStateFlow<ProblemDescriptionUiState>(ProblemDescriptionUiState.Initial)
     val uiState: StateFlow<ProblemDescriptionUiState> = _uiState
 
+    private fun sanitizeInput(input: String): String {
+        return input.replace(Regex("<[^>]*>"), "")
+                    .replace(Regex("[{};]"), "")
+                    .trim()
+    }
+
     fun saveProblemDescription(request: SupportRequest, photos: List<String>) {
         viewModelScope.launch {
             _uiState.value = ProblemDescriptionUiState.Loading
             try {
-                // 1. Obtener nombre del servicio (Opcional, no bloquea)
-                val service = repository.getServiceById(request.serviceCatalogId)
-                val serviceName = service?.visibleName ?: "Servicio General"
+                var serviceName = "Soporte Técnico"
+                try {
+                    val service = repository.getServiceById(request.serviceCatalogId)
+                    if (service != null) serviceName = service.visibleName
+                } catch (e: Exception) {
+                    Log.w("SoportApp", "Catálogo no listo")
+                }
                 
-                // 2. Crear una solicitud "limpia" para evitar errores de FK
+                // GENERACIÓN DE CÓDIGO OTP ALEATORIO (4 DÍGITOS)
+                val randomCode = Random.nextInt(1000, 9999).toString()
+
                 val finalRequest = request.copy(
+                    problemDescription = sanitizeInput(request.problemDescription),
+                    serviceAddress = sanitizeInput(request.serviceAddress),
                     serviceNameSnapshot = serviceName,
-                    createdAt = System.currentTimeMillis().toString(), // Fecha real
+                    securityCode = randomCode, // Guardamos el código dinámico
+                    createdAt = System.currentTimeMillis().toString(),
                     estado = "Pendiente",
                     requestStatus = "POR_PAGAR"
                 )
 
-                Log.d("SoportApp", "Intentando insertar solicitud...")
-
-                // 3. Insert the request
                 val supportRequestId = repository.insertSupportRequest(finalRequest)
                 
-                Log.d("SoportApp", "Inserción exitosa. ID: $supportRequestId")
-
-                // 4. Save photos (Opcional, no bloquea el flujo principal)
                 if (photos.isNotEmpty()) {
                     try {
                         val photoEntities = photos.map {
@@ -59,22 +68,20 @@ class ProblemDescriptionViewModel(private val repository: SoportAppRepository) :
                         }
                         repository.insertEvidencePhotos(photoEntities)
                     } catch (e: Exception) {
-                        Log.e("SoportApp", "Error al guardar fotos, pero continuamos: ${e.message}")
+                        Log.e("SoportApp", "Error fotos: ${e.message}")
                     }
                 }
 
                 _uiState.value = ProblemDescriptionUiState.Success(supportRequestId)
 
             } catch (e: Exception) {
-                // LOG DETALLADO DEL ERROR
-                Log.e("SoportApp", "FALLO CRÍTICO AL GUARDAR: ${e.message}", e)
-                _uiState.value = ProblemDescriptionUiState.Error("Error técnico: ${e.localizedMessage}")
+                Log.e("SoportApp", "FALLO EN GUARDADO: ${e.message}", e)
+                _uiState.value = ProblemDescriptionUiState.Error("No se pudo guardar la solicitud. Reinstala la app.")
             }
         }
     }
 }
 
-// ViewModel Factory
 class ProblemDescriptionViewModelFactory(private val repository: SoportAppRepository) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(ProblemDescriptionViewModel::class.java)) {
