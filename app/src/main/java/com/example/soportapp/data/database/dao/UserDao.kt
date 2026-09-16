@@ -16,4 +16,10 @@ interface UserDao {
 
     @Query("SELECT * FROM usuarios WHERE telefono = :phone")
     suspend fun getUserByPhone(phone: String): User?
+
+    @Query("SELECT * FROM usuarios WHERE email = :email")
+    suspend fun getUserByEmail(email: String): User?
+
+    @Query("SELECT * FROM usuarios")
+    suspend fun getAllUsers(): List<User>
 }

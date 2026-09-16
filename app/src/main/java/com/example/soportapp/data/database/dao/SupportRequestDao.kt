@@ -23,4 +23,10 @@ interface SupportRequestDao {
 
     @Query("UPDATE solicitudes_soporte SET id_tecnico = :technicianId WHERE id_solicitud = :supportRequestId")
     suspend fun assignTechnicianToRequest(supportRequestId: Long, technicianId: Int)
+
+    @Query("SELECT * FROM solicitudes_soporte ORDER BY fecha_creacion DESC")
+    suspend fun getAllRequests(): List<SupportRequest>
+
+    @Query("SELECT * FROM solicitudes_soporte WHERE id_tecnico = :technicianId ORDER BY fecha_creacion DESC")
+    suspend fun getRequestsByTechnician(technicianId: Int): List<SupportRequest>
 }

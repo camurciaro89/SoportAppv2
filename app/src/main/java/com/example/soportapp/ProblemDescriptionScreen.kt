@@ -36,7 +36,10 @@ fun ProblemDescriptionScreen(
 ) {
     val application = LocalContext.current.applicationContext as SoportApplication
     val viewModel: ProblemDescriptionViewModel = viewModel(
-        factory = ProblemDescriptionViewModelFactory(application.container.soportAppRepository)
+        factory = ProblemDescriptionViewModelFactory(
+            application.container.soportAppRepository,
+            application.container.aiDiagnosisService
+        )
     )
 
     var description by remember { mutableStateOf(TextFieldValue("")) }

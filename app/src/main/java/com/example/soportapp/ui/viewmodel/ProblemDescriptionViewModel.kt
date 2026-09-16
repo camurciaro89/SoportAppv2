@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.soportapp.data.database.EvidencePhoto
 import com.example.soportapp.data.database.SupportRequest
 import com.example.soportapp.data.repository.SoportAppRepository
+import com.example.soportapp.data.service.AiDiagnosisService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -19,7 +20,10 @@ sealed interface ProblemDescriptionUiState {
     data class Error(val message: String) : ProblemDescriptionUiState
 }
 
-class ProblemDescriptionViewModel(private val repository: SoportAppRepository) : ViewModel() {
+class ProblemDescriptionViewModel(
+    private val repository: SoportAppRepository,
+    private val aiService: AiDiagnosisService
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ProblemDescriptionUiState>(ProblemDescriptionUiState.Initial)
     val uiState: StateFlow<ProblemDescriptionUiState> = _uiState
@@ -43,16 +47,21 @@ class ProblemDescriptionViewModel(private val repository: SoportAppRepository) :
                 }
                 
                 // GENERACIÓN DE CÓDIGO OTP ALEATORIO (4 DÍGITOS)
-                val randomCode = Random.nextInt(1000, 9999).toString()
-
+                val randomCode = kotlin.random.Random.nextInt(1000, 9999).toString()
+                
+                // GENERACIÓN DE DIAGNÓSTICO IA
+                val aiDiagnosis = aiService.generateDiagnosis(request.problemDescription)
+                
                 val finalRequest = request.copy(
                     problemDescription = sanitizeInput(request.problemDescription),
                     serviceAddress = sanitizeInput(request.serviceAddress),
                     serviceNameSnapshot = serviceName,
-                    securityCode = randomCode, // Guardamos el código dinámico
+                    securityCode = randomCode,
+                    aiDiagnosis = aiDiagnosis,
                     createdAt = System.currentTimeMillis().toString(),
-                    estado = "Pendiente",
-                    requestStatus = "POR_PAGAR"
+                    estado = "Nuevo",
+                    requestStatus = "POR_PAGAR",
+                    ticketNumber = "ST-${System.currentTimeMillis().toString().takeLast(6)}"
                 )
 
                 val supportRequestId = repository.insertSupportRequest(finalRequest)
@@ -82,11 +91,14 @@ class ProblemDescriptionViewModel(private val repository: SoportAppRepository) :
     }
 }
 
-class ProblemDescriptionViewModelFactory(private val repository: SoportAppRepository) : ViewModelProvider.Factory {
+class ProblemDescriptionViewModelFactory(
+    private val repository: SoportAppRepository,
+    private val aiService: AiDiagnosisService
+) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(ProblemDescriptionViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return ProblemDescriptionViewModel(repository) as T
+            return ProblemDescriptionViewModel(repository, aiService) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

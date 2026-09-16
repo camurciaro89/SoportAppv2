@@ -13,4 +13,7 @@ interface TechnicianDao {
 
     @Query("SELECT * FROM tecnicos WHERE id_tecnico = :id")
     suspend fun getTechnicianById(id: Int): Technician?
+
+    @Query("SELECT * FROM tecnicos")
+    suspend fun getAllTechnicians(): List<Technician>
 }

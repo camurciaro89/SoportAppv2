@@ -2,15 +2,18 @@ package com.example.soportapp.data.repository
 
 import android.util.Base64
 import android.util.Log
+import com.example.soportapp.data.database.Equipment
 import com.example.soportapp.data.database.EvidencePhoto
 import com.example.soportapp.data.database.Payment
 import com.example.soportapp.data.database.Rating
 import com.example.soportapp.data.database.ServiceCatalog
 import com.example.soportapp.data.database.SupportRequest
+import com.example.soportapp.data.database.Technician
 import com.example.soportapp.data.database.User
 import com.example.soportapp.data.database.dao.*
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
@@ -24,7 +27,8 @@ class SoportAppRepository(
     private val paymentDao: PaymentDao,
     private val ratingDao: RatingDao,
     private val evidencePhotoDao: EvidencePhotoDao,
-    private val technicianAssignmentDao: TechnicianAssignmentDao
+    private val technicianAssignmentDao: TechnicianAssignmentDao,
+    private val equipmentDao: EquipmentDao
 ) {
     private val firestore = FirebaseFirestore.getInstance()
     
@@ -67,6 +71,7 @@ class SoportAppRepository(
     }
 
     suspend fun getUserByPhone(phone: String): User? = userDao.getUserByPhone(phone)
+    suspend fun getUserByEmail(email: String): User? = userDao.getUserByEmail(email)
     suspend fun getSupportRequest(id: Long): SupportRequest? = supportRequestDao.getRequestById(id)
     
     suspend fun updateSupportRequest(request: SupportRequest) {
@@ -156,5 +161,52 @@ class SoportAppRepository(
         try {
             firestore.collection("calificaciones").add(rating)
         } catch (e: Exception) { }
+    }
+
+    // --- MÉTODOS PARA EQUIPOS ---
+
+    fun getEquipmentsByUserId(userId: Int): kotlinx.coroutines.flow.Flow<List<Equipment>> {
+        return equipmentDao.getEquipmentsByUserId(userId)
+    }
+
+    suspend fun insertEquipment(equipment: Equipment): Long {
+        return equipmentDao.insert(equipment)
+    }
+
+    // --- MÉTODOS DE ADMINISTRACIÓN ---
+
+    suspend fun getAllUsers(): List<User> {
+        return userDao.getAllUsers()
+    }
+
+    suspend fun getAllTechnicians(): List<Technician> {
+        return technicianDao.getAllTechnicians()
+    }
+
+    suspend fun getAllLocalRequests(): List<SupportRequest> {
+        return supportRequestDao.getAllRequests()
+    }
+
+    suspend fun getRequestsByTechnician(technicianId: Int): List<SupportRequest> {
+        return supportRequestDao.getRequestsByTechnician(technicianId)
+    }
+
+    suspend fun getEquipmentsNeedingMaintenance(userId: Int): List<Equipment> {
+        val allEquipments = equipmentDao.getEquipmentsByUserId(userId).first()
+        val allRequests = supportRequestDao.getAllRequests()
+        
+        return allEquipments.filter { equipment ->
+            val lastMaintenance = allRequests.filter { 
+                it.equipmentId == equipment.id && it.serviceCatalogId.contains("mantenimiento") 
+            }.maxByOrNull { it.createdAt }
+            
+            if (lastMaintenance == null) {
+                true 
+            } else {
+                val sixMonthsMillis = 180L * 24 * 60 * 60 * 1000
+                val lastTime = lastMaintenance.createdAt.toLongOrNull() ?: 0L
+                System.currentTimeMillis() - lastTime > sixMonthsMillis
+            }
+        }
     }
 }

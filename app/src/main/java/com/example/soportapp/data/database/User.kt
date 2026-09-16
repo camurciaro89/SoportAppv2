@@ -9,7 +9,9 @@ data class User(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
     val nombre: String = "",
+    val email: String = "",
     val telefono: String = "",
+    val contrasena: String = "",
     @ColumnInfo(name = "tipo_usuario")
     val userType: String = "",
     @ColumnInfo(name = "creado_en", defaultValue = "CURRENT_TIMESTAMP")

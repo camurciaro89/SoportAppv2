@@ -23,7 +23,16 @@ data class Rating(
     @ColumnInfo(name = "id_solicitud", index = true)
     val supportRequestId: Int,
 
-    val puntuacion: Int,
+    val puntuacion: Int, // Puntuación general 1-5
+
+    @ColumnInfo(name = "calificacion_tecnico")
+    val technicianRating: Int = 0,
+
+    @ColumnInfo(name = "calificacion_servicio")
+    val serviceRating: Int = 0,
+
+    @ColumnInfo(name = "calificacion_atencion")
+    val supportRating: Int = 0,
 
     val comentario: String?,
 

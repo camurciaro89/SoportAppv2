@@ -21,13 +21,23 @@ class RatingViewModel(private val repository: SoportAppRepository) : ViewModel()
     private val _uiState = MutableStateFlow<RatingUiState>(RatingUiState.Initial)
     val uiState: StateFlow<RatingUiState> = _uiState
 
-    fun saveRating(supportRequestId: Long, score: Int, comment: String) {
+    fun saveRating(
+        supportRequestId: Long,
+        score: Int,
+        techRating: Int,
+        serviceRating: Int,
+        supportRating: Int,
+        comment: String
+    ) {
         viewModelScope.launch {
             _uiState.value = RatingUiState.Loading
             try {
                 val rating = Rating(
                     supportRequestId = supportRequestId.toInt(),
                     puntuacion = score,
+                    technicianRating = techRating,
+                    serviceRating = serviceRating,
+                    supportRating = supportRating,
                     comentario = comment,
                     ratingDate = System.currentTimeMillis().toString()
                 )

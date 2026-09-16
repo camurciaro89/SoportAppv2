@@ -45,9 +45,52 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun SoportApp() {
     val navController = rememberNavController()
-    val technician = TechnicianRepository.getMainTechnician()
+    // Obtenemos el técnico principal para simulaciones de usuario final
+    val mainTechnician = TechnicianRepository.getMainTechnician()
+    // Convertimos para que coincida con el modelo de base de datos si es necesario
+    val dbTechnician = com.example.soportapp.data.database.Technician(
+        id = 1,
+        nombre = mainTechnician.name,
+        especialidad = "Soporte General",
+        photoUrl = "",
+        professionalTitle = mainTechnician.title,
+        isVerified = true,
+        averageRating = 4.9f,
+        totalServices = mainTechnician.totalServices
+    )
 
-    NavHost(navController = navController, startDestination = "welcome") {
+    NavHost(navController = navController, startDestination = "login") {
+        composable("login") {
+            LoginScreen(
+                onLoginSuccess = { userType ->
+                    when (userType.uppercase()) {
+                        "TECNICO" -> navController.navigate("technicianDashboard/1")
+                        "ADMIN" -> navController.navigate("adminDashboard")
+                        else -> navController.navigate("welcome")
+                    }
+                },
+                onNavigateToRegister = { navController.navigate("register") }
+            )
+        }
+        composable("register") {
+            RegisterScreen(
+                onRegisterSuccess = { navController.navigate("login") },
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable("adminDashboard") {
+            AdminDashboardScreen(onBack = { navController.popBackStack() })
+        }
+        composable(
+            "technicianDashboard/{technicianId}",
+            arguments = listOf(navArgument("technicianId") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val technicianId = backStackEntry.arguments?.getInt("technicianId") ?: 1
+            TechnicianDashboardScreen(
+                technicianId = technicianId,
+                onBack = { navController.popBackStack() }
+            )
+        }
         composable("welcome") {
             WelcomeScreen(
                 onStart = { navController.navigate("userTypeSelection") },
@@ -89,7 +132,6 @@ fun SoportApp() {
             ProblemDescriptionScreen(
                 userType = userType,
                 serviceId = serviceId,
-                // Salta directamente a contacto (Paso 6 real)
                 onContinue = { supportRequestId -> navController.navigate("contactInfo/$supportRequestId") },
                 onBack = { navController.popBackStack() }
             )
@@ -102,7 +144,6 @@ fun SoportApp() {
             val supportRequestId = backStackEntry.arguments?.getLong("supportRequestId") ?: -1
             ContactInfoScreen(
                 supportRequestId = supportRequestId,
-                // CAMBIO: Salta directamente al Estado del Servicio (Paso 9), quitando la asignación automática
                 onContinue = { newSupportRequestId -> 
                     navController.navigate("serviceStatus/$newSupportRequestId") 
                 },
@@ -117,7 +158,7 @@ fun SoportApp() {
              val supportRequestId = backStackEntry.arguments?.getLong("supportRequestId") ?: -1
             ServiceStatusScreen(
                 supportRequestId = supportRequestId,
-                technician = technician,
+                technician = mainTechnician,
                 onBack = { navController.popBackStack() },
                 onFinish = { navController.navigate("rating/$supportRequestId") }
             )
@@ -129,7 +170,7 @@ fun SoportApp() {
              val supportRequestId = backStackEntry.arguments?.getLong("supportRequestId") ?: -1
             RatingScreen(
                 supportRequestId = supportRequestId,
-                technicianName = technician.name,
+                technicianName = mainTechnician.name,
                 onFinish = {
                     navController.navigate("welcome") {
                         popUpTo("welcome") { inclusive = true }

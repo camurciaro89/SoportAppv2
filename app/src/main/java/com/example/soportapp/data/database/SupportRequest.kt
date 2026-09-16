@@ -68,7 +68,32 @@ data class SupportRequest(
     @ColumnInfo(name = "tipo_cliente_id")
     val clientTypeId: String = "",
 
-    // NUEVO: Código de seguridad dinámico (OTP)
+    @ColumnInfo(name = "diagnostico_ia")
+    val aiDiagnosis: String? = null,
+
+    @ColumnInfo(name = "categoria_ia")
+    val aiCategory: String = "",
+
+    val prioridad: String = "Media", // Baja, Media, Alta
+
     @ColumnInfo(name = "codigo_seguridad")
-    val securityCode: String = ""
+    val securityCode: String = "",
+
+    @ColumnInfo(name = "solucion_tecnica")
+    val technicalSolution: String = "",
+
+    @ColumnInfo(name = "repuestos_usados")
+    val partsUsed: String = "",
+
+    @ColumnInfo(name = "observaciones_tecnico")
+    val technicianNotes: String = "",
+
+    @ColumnInfo(name = "fecha_finalizacion")
+    val completedAt: String = "",
+
+    @ColumnInfo(name = "id_equipo", index = true)
+    val equipmentId: Int? = null,
+
+    @ColumnInfo(name = "numero_ticket")
+    val ticketNumber: String = ""
 )

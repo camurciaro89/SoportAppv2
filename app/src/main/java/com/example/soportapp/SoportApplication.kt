@@ -3,6 +3,7 @@ package com.example.soportapp
 import android.app.Application
 import com.example.soportapp.data.database.SoportAppDatabase
 import com.example.soportapp.data.repository.SoportAppRepository
+import com.example.soportapp.data.service.AiDiagnosisService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 
@@ -28,6 +29,7 @@ class SoportApplication : Application() {
  */
 interface AppContainer {
     val soportAppRepository: SoportAppRepository
+    val aiDiagnosisService: AiDiagnosisService
 }
 
 /**
@@ -49,7 +51,13 @@ private class AppContainerImpl(
             paymentDao = db.paymentDao(),
             ratingDao = db.ratingDao(),
             evidencePhotoDao = db.evidencePhotoDao(),
-            technicianAssignmentDao = db.technicianAssignmentDao()
+            technicianAssignmentDao = db.technicianAssignmentDao(),
+            equipmentDao = db.equipmentDao()
         )
+    }
+
+    override val aiDiagnosisService: AiDiagnosisService by lazy {
+        // Reemplazar con una API Key válida para habilitar Gemini
+        AiDiagnosisService(apiKey = "YOUR_GEMINI_API_KEY")
     }
 }

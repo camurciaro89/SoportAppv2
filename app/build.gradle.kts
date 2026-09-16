@@ -55,6 +55,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.google.generativeai)
 
     // Room estándar (Sin SQLCipher para estabilidad)
     implementation(libs.androidx.room.runtime)

@@ -3,6 +3,7 @@ package com.example.soportapp
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -41,6 +42,9 @@ fun RatingScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     var rating by remember { mutableStateOf(0) }
+    var techRating by remember { mutableStateOf(0) }
+    var serviceRating by remember { mutableStateOf(0) }
+    var supportRating by remember { mutableStateOf(0) }
     var comment by remember { mutableStateOf("") }
 
     LaunchedEffect(uiState) {
@@ -55,7 +59,7 @@ fun RatingScreen(
                 title = { 
                     Column {
                         Text("Calificar servicio", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text("Paso 10 de 10", fontSize = 13.sp, color = Color.Gray)
+                        Text("Paso 6 de 6", fontSize = 13.sp, color = Color.Gray)
                     }
                 },
                 navigationIcon = {
@@ -69,97 +73,108 @@ fun RatingScreen(
         containerColor = Color.White
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-            Column(
+            LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(24.dp),
+                    .padding(horizontal = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(100.dp)
-                        .background(Color(0xFFF1F5F9), CircleShape)
-                        .clip(CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("C", fontSize = 40.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2563EB))
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Text(
-                    text = "¡Servicio finalizado!",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827)
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "¿Cómo calificarías el trabajo de $technicianName?",
-                    fontSize = 16.sp,
-                    color = Color.Gray,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    repeat(5) { index ->
-                        val starIndex = index + 1
-                        Icon(
-                            imageVector = if (starIndex <= rating) Icons.Default.Star else Icons.Default.StarOutline,
-                            contentDescription = null,
-                            tint = if (starIndex <= rating) Color(0xFFF59E0B) else Color(0xFFE2E8F0),
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clickable { rating = starIndex }
-                        )
+                item { Spacer(modifier = Modifier.height(24.dp)) }
+                
+                item {
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .background(Color(0xFFF1F5F9), CircleShape)
+                            .clip(CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("C", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2563EB))
                     }
                 }
 
-                Spacer(modifier = Modifier.height(32.dp))
+                item {
+                    Text(
+                        text = "¡Servicio finalizado!",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF111827)
+                    )
+                }
 
-                OutlinedTextField(
-                    value = comment,
-                    onValueChange = { comment = it },
-                    placeholder = { Text("Cuéntanos más sobre tu experiencia (opcional)") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    enabled = uiState !is RatingUiState.Loading
-                )
+                item {
+                    Text(
+                        text = "¿Cómo calificarías el trabajo de $technicianName?",
+                        fontSize = 15.sp,
+                        color = Color.Gray,
+                        textAlign = TextAlign.Center
+                    )
+                }
 
-                Spacer(modifier = Modifier.height(48.dp))
+                item {
+                    RatingItemRow("Calificación general", rating) { rating = it }
+                }
 
-                Button(
-                    onClick = { viewModel.saveRating(supportRequestId, rating, comment) },
-                    enabled = rating > 0 && uiState !is RatingUiState.Loading,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A))
-                ) {
-                    if (uiState is RatingUiState.Loading) {
-                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                    } else {
-                        Text("Enviar calificación", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                item {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Text("Detalla tu experiencia", fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.fillMaxWidth())
+                }
+
+                item { RatingItemRow("Técnico", techRating) { techRating = it } }
+                item { RatingItemRow("Servicio", serviceRating) { serviceRating = it } }
+                item { RatingItemRow("Atención", supportRating) { supportRating = it } }
+
+                item {
+                    OutlinedTextField(
+                        value = comment,
+                        onValueChange = { comment = it },
+                        placeholder = { Text("Cuéntanos más sobre tu experiencia (opcional)") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        enabled = uiState !is RatingUiState.Loading
+                    )
+                }
+
+                item {
+                    Button(
+                        onClick = { 
+                            viewModel.saveRating(
+                                supportRequestId, 
+                                rating, 
+                                techRating, 
+                                serviceRating, 
+                                supportRating, 
+                                comment
+                            ) 
+                        },
+                        enabled = rating > 0 && uiState !is RatingUiState.Loading,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A))
+                    ) {
+                        if (uiState is RatingUiState.Loading) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                        } else {
+                            Text("Enviar calificación", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
 
-                TextButton(
-                    onClick = { onFinish() },
-                    modifier = Modifier.padding(top = 8.dp),
-                    enabled = uiState !is RatingUiState.Loading
-                ) {
-                    Text("Omitir", color = Color.Gray)
+                item {
+                    TextButton(
+                        onClick = { onFinish() },
+                        enabled = uiState !is RatingUiState.Loading
+                    ) {
+                        Text("Omitir", color = Color.Gray)
+                    }
                 }
+                
+                item { Spacer(modifier = Modifier.height(24.dp)) }
             }
             
             if (uiState is RatingUiState.Error) {
@@ -167,6 +182,30 @@ fun RatingScreen(
                     text = (uiState as RatingUiState.Error).message,
                     color = Color.Red,
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun RatingItemRow(label: String, currentRating: Int, onRatingChange: (Int) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, fontSize = 14.sp)
+        Row {
+            repeat(5) { index ->
+                val starIndex = index + 1
+                Icon(
+                    imageVector = if (starIndex <= currentRating) Icons.Default.Star else Icons.Default.StarOutline,
+                    contentDescription = null,
+                    tint = if (starIndex <= currentRating) Color(0xFFF59E0B) else Color(0xFFE2E8F0),
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clickable { onRatingChange(starIndex) }
                 )
             }
         }

@@ -19,9 +19,10 @@ import kotlinx.coroutines.launch
         Payment::class,
         Rating::class,
         EvidencePhoto::class,
-        TechnicianAssignment::class
+        TechnicianAssignment::class,
+        Equipment::class
     ],
-    version = 8, // Subimos a versión 8 para forzar actualización
+    version = 6, // Aumentamos a versión 6 para incluir equipos y nuevos campos de solicitud
     exportSchema = false
 )
 abstract class SoportAppDatabase : RoomDatabase() {
@@ -34,6 +35,7 @@ abstract class SoportAppDatabase : RoomDatabase() {
     abstract fun ratingDao(): RatingDao
     abstract fun evidencePhotoDao(): EvidencePhotoDao
     abstract fun technicianAssignmentDao(): TechnicianAssignmentDao
+    abstract fun equipmentDao(): EquipmentDao
 
     private class SoportAppDatabaseCallback(
         private val scope: CoroutineScope
@@ -49,15 +51,29 @@ abstract class SoportAppDatabase : RoomDatabase() {
         }
 
         suspend fun populateDatabase(db: SoportAppDatabase) {
-            try {
-                val serviceCatalogDao = db.serviceCatalogDao()
-                val services = listOf(
-                    ServiceCatalog("soporte-computadores", "general", "Soporte técnico", "Reparación y mantenimiento", "Remoto o sitio", "monitor", "#2563EB", "#DBEAFE"),
-                    ServiceCatalog("mantenimiento-preventivo-empresarial", "empresa", "Mantenimiento empresarial", "Revisión programada", "En sitio", "settings", "#16A34A", "#DCFCE7"),
-                    ServiceCatalog("diagnostico-tecnico-empresarial", "general", "Diagnóstico técnico", "Evaluación técnica", "Remoto o sitio", "search", "#EA580C", "#FFF7ED")
+            val technicianDao = db.technicianDao()
+            technicianDao.insert(
+                Technician(
+                    id = 1,
+                    nombre = "Camilo Andrés Murcia",
+                    especialidad = "Microinformática",
+                    photoUrl = "",
+                    professionalTitle = "Especialista en Microinformática",
+                    isVerified = true,
+                    averageRating = 4.9f,
+                    totalServices = 150
                 )
-                serviceCatalogDao.insertAll(services)
-            } catch (e: Exception) { }
+            )
+
+            val serviceCatalogDao = db.serviceCatalogDao()
+            val services = listOf(
+                ServiceCatalog("soporte-computadores", "general", "Soporte técnico", "Reparación y mantenimiento", "Remoto o sitio", "monitor", "#2563EB", "#DBEAFE"),
+                ServiceCatalog("mantenimiento-preventivo-empresarial", "empresa", "Mantenimiento empresarial", "Revisión programada", "En sitio", "settings", "#16A34A", "#DCFCE7"),
+                ServiceCatalog("diagnostico-tecnico-empresarial", "general", "Diagnóstico técnico", "Evaluación técnica", "Remoto o sitio", "search", "#EA580C", "#FFF7ED"),
+                ServiceCatalog("soporte-m365", "empresa", "Soporte Microsoft 365", "Configuración nube", "Remoto", "cloud", "#2563EB", "#DBEAFE"),
+                ServiceCatalog("seguridad-informatica", "empresa", "Seguridad informática", "Antivirus y protección", "Remoto", "security", "#DC2626", "#FEE2E2")
+            )
+            serviceCatalogDao.insertAll(services)
         }
     }
 
@@ -72,8 +88,8 @@ abstract class SoportAppDatabase : RoomDatabase() {
                     SoportAppDatabase::class.java,
                     "soportapp_database"
                 )
-                .fallbackToDestructiveMigration() // Si la versión cambia, borra y crea
                 .addCallback(SoportAppDatabaseCallback(scope))
+                .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
                 instance
