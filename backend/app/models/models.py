@@ -28,7 +28,7 @@ class User(Base):
     nombre = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     telefono = Column(String, nullable=False)
-    contrasena = Column(String, nullable=False) # Hash Bcrypt
+    contrasena = Column(String, nullable=False) # Hash Argon2id
     is_active = Column(Boolean, default=True)
     user_type = Column(String, default="CLIENTE")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -103,7 +103,7 @@ class Equipment(Base):
     __tablename__ = "equipos"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False, index=True)
     tipo = Column(String, nullable=False) # Portátil, Impresora, etc.
     marca = Column(String, nullable=False)
     modelo = Column(String, nullable=False)
@@ -120,21 +120,21 @@ class SupportRequest(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     ticket_number = Column(String, unique=True, index=True, nullable=False) # ST-000125
-    user_id = Column(Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
-    technician_id = Column(Integer, ForeignKey("usuarios.id", ondelete="SET NULL"), nullable=True)
-    equipment_id = Column(Integer, ForeignKey("equipos.id", ondelete="SET NULL"), nullable=True)
+    user_id = Column(Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False, index=True)
+    technician_id = Column(Integer, ForeignKey("usuarios.id", ondelete="SET NULL"), nullable=True, index=True)
+    equipment_id = Column(Integer, ForeignKey("equipos.id", ondelete="SET NULL"), nullable=True, index=True)
     service_id = Column(Integer, ForeignKey("servicios.id", ondelete="SET NULL"), nullable=True)
 
     problem_description = Column(Text, nullable=False)
     modalidad = Column(String, nullable=False) # Remoto, Sitio, Taller
-    estado = Column(String, default="NUEVO", nullable=False)
+    estado = Column(String, default="NUEVO", nullable=False, index=True)
     prioridad = Column(String, default="Media", nullable=False)
 
     # Resultados Técnicos
     technical_solution = Column(Text)
     parts_used = Column(Text)
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Restricciones de Dominio
@@ -154,7 +154,7 @@ class SupportRequest(Base):
 class AIDiagnosis(Base):
     __tablename__ = "diagnosticos_ia"
     id = Column(Integer, primary_key=True, index=True)
-    request_id = Column(Integer, ForeignKey("solicitudes_soporte.id", ondelete="CASCADE"), nullable=False)
+    request_id = Column(Integer, ForeignKey("solicitudes_soporte.id", ondelete="CASCADE"), nullable=False, index=True)
     diagnosis_text = Column(Text, nullable=False)
     suggested_priority = Column(String)
     model_name = Column(String) # Llama3, Mistral, etc.
@@ -165,7 +165,7 @@ class AIDiagnosis(Base):
 class TicketHistory(Base):
     __tablename__ = "historial_tickets"
     id = Column(Integer, primary_key=True, index=True)
-    request_id = Column(Integer, ForeignKey("solicitudes_soporte.id", ondelete="CASCADE"), nullable=False)
+    request_id = Column(Integer, ForeignKey("solicitudes_soporte.id", ondelete="CASCADE"), nullable=False, index=True)
     previous_status = Column(String)
     new_status = Column(String, nullable=False)
     changed_by_id = Column(Integer, ForeignKey("usuarios.id", ondelete="SET NULL"), nullable=True)
@@ -206,7 +206,7 @@ class Maintenance(Base):
 class Notification(Base):
     __tablename__ = "notificaciones"
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String, nullable=False)
     message = Column(Text, nullable=False)
     is_read = Column(Boolean, default=False)

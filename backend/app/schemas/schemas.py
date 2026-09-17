@@ -28,8 +28,19 @@ class LoginRequest(BaseModel):
 
 class Token(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str
     user_type: str
+
+class TokenPayload(BaseModel):
+    sub: Optional[int] = None
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str
 
 # --- TÉCNICOS ---
 

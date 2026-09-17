@@ -3,11 +3,8 @@ from sqlalchemy.orm import Session
 from .database import engine, Base, get_db
 from .models import models
 from .services.ai_service import ai_service
-from .api import auth, equipments, tickets
+from .api import auth, equipments, tickets, users, ratings
 from fastapi.middleware.cors import CORSMiddleware
-
-# Crear tablas en la base de datos (En desarrollo)
-models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="SoportApp Backend",
@@ -30,8 +27,10 @@ def read_root():
 
 # Registro de rutas
 app.include_router(auth.router)
+app.include_router(users.router)
 app.include_router(equipments.router)
 app.include_router(tickets.router)
+app.include_router(ratings.router)
 
 # Aquí se agregarían los routers para auth, tickets, etc.
 # app.include_router(auth.router)
