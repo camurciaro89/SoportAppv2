@@ -6,6 +6,12 @@ import com.google.ai.client.generativeai.type.generationConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+/**
+ * Servicio encargado de la comunicación con el modelo de lenguaje Gemini de Google
+ * para generar diagnósticos técnicos preliminares.
+ *
+ * @param apiKey Clave secreta para acceder a la API de Google AI.
+ */
 class AiDiagnosisService(apiKey: String) {
 
     private val model = GenerativeModel(

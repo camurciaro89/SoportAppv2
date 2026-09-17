@@ -22,7 +22,7 @@ import kotlinx.coroutines.launch
         TechnicianAssignment::class,
         Equipment::class
     ],
-    version = 6, // Aumentamos a versión 6 para incluir equipos y nuevos campos de solicitud
+    version = 7, // Incrementamos a 7 para agregar salt en User
     exportSchema = false
 )
 abstract class SoportAppDatabase : RoomDatabase() {

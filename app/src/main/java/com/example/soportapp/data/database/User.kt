@@ -12,6 +12,7 @@ data class User(
     val email: String = "",
     val telefono: String = "",
     val contrasena: String = "",
+    val salt: String = "",
     @ColumnInfo(name = "tipo_usuario")
     val userType: String = "",
     @ColumnInfo(name = "creado_en", defaultValue = "CURRENT_TIMESTAMP")

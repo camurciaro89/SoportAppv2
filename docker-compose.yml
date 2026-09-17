@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: soportapp_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-soportapp2024}
+      POSTGRES_DB: ${POSTGRES_DB:-soportapp}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend-network
+
+  api:
+    build: ./backend
+    container_name: soportapp_api
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-soportapp2024}@db:5432/${POSTGRES_DB:-soportapp}
+      OLLAMA_URL: http://ollama:11434/api/generate
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3}
+    depends_on:
+      - db
+    networks:
+      - backend-network
+
+  proxy:
+    build: ./backend/nginx
+    container_name: soportapp_proxy
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    networks:
+      - backend-network
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: soportapp_ai
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - backend-network
+    # Nota: Para usar GPU en Linux se requiere configuración adicional de nvidia-docker
+    # Por defecto usará CPU.
+
+networks:
+  backend-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  ollama_data:

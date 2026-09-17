@@ -19,6 +19,19 @@ import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
+/**
+ * Repositorio central de la aplicación que gestiona la persistencia de datos local (Room)
+ * y la sincronización con la nube (Firebase).
+ *
+ * Implementa un patrón de "Local First" donde el guardado en la base de datos local es prioritario,
+ * seguido de un intento de sincronización asíncrona con Firestore.
+ *
+ * @property userDao Acceso a datos de usuarios.
+ * @property serviceCatalogDao Acceso al catálogo de servicios disponibles.
+ * @property supportRequestDao Gestión de tickets y solicitudes de soporte.
+ * @property technicianDao Información de los técnicos registrados.
+ * @property equipmentDao Gestión del inventario de equipos del usuario.
+ */
 class SoportAppRepository(
     private val userDao: UserDao,
     private val serviceCatalogDao: ServiceCatalogDao,
