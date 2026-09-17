@@ -115,6 +115,19 @@ class SupportRequestResponse(SupportRequestBase):
 
 # --- DIAGNÓSTICO IA ---
 
+class DiagnosticQuestionRequest(BaseModel):
+    problem_description: str
+
+class DiagnosticAnswer(BaseModel):
+    question: str
+    answer: str
+
+class FinalDiagnosisRequest(BaseModel):
+    problem_description: str
+    answers: List[DiagnosticAnswer]
+    equipment_id: Optional[int] = None
+    modalidad: str = "Sitio"
+
 class AIDiagnosisResponse(BaseModel):
     id: int
     request_id: int

@@ -18,6 +18,61 @@ router = APIRouter(
 
 limiter = Limiter(key_func=get_remote_address)
 
+@router.post("/analyze")
+async def analyze_problem(
+    request: schemas.DiagnosticQuestionRequest,
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Paso 1: Recibe la descripción inicial y devuelve preguntas aclaratorias de la IA.
+    """
+    questions = await ai_service.get_clarifying_questions(request.problem_description)
+    return {"questions": questions}
+
+@router.post("/confirm", response_model=schemas.SupportRequestResponse)
+async def confirm_ticket(
+    data: schemas.FinalDiagnosisRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Paso 2: Recibe las respuestas, genera el diagnóstico final y crea el ticket.
+    """
+    # 1. Generar diagnóstico final con todo el contexto
+    qa_history = [{"question": a.question, "answer": a.answer} for a in data.answers]
+    diagnosis_text = await ai_service.generate_final_diagnosis(data.problem_description, qa_history)
+
+    # 2. Determinar prioridad (lógica simple de extracción)
+    priority = "Media"
+    if "Alta" in diagnosis_text: priority = "Alta"
+    elif "Baja" in diagnosis_text: priority = "Baja"
+
+    # 3. Crear el ticket oficial
+    db_ticket = models.SupportRequest(
+        user_id=current_user.id,
+        equipment_id=data.equipment_id,
+        problem_description=data.problem_description,
+        modalidad=data.modalidad,
+        prioridad=priority,
+        estado="NUEVO",
+        ticket_number=f"ST-{datetime.now().strftime('%y%m%d%H%M')}"
+    )
+    db.add(db_ticket)
+    db.commit()
+    db.refresh(db_ticket)
+
+    # 4. Guardar diagnóstico en auditoría
+    db_ai = models.AIDiagnosis(
+        request_id=db_ticket.id,
+        diagnosis_text=diagnosis_text,
+        suggested_priority=priority,
+        model_name="llama3"
+    )
+    db.add(db_ai)
+    db.commit()
+
+    return db_ticket
+
 @router.post("/", response_model=schemas.SupportRequestResponse)
 @limiter.limit("10/minute")
 async def create_ticket(
