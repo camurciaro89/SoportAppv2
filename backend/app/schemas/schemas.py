@@ -1,6 +1,7 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional, List
 from datetime import datetime
+import bleach
 
 # --- USUARIOS ---
 
@@ -85,6 +86,11 @@ class SupportRequestBase(BaseModel):
     problem_description: str
     modalidad: str
 
+    @field_validator('problem_description')
+    @classmethod
+    def sanitize_description(cls, v: str) -> str:
+        return bleach.clean(v, tags=[], strip=True)
+
 class SupportRequestCreate(SupportRequestBase):
     pass
 
@@ -126,6 +132,13 @@ class RatingCreate(BaseModel):
     service_rating: int
     support_rating: int
     comment: Optional[str] = None
+
+    @field_validator('comment')
+    @classmethod
+    def sanitize_comment(cls, v: Optional[str]) -> Optional[str]:
+        if v:
+            return bleach.clean(v, tags=[], strip=True)
+        return v
 
 class RatingResponse(RatingCreate):
     id: int

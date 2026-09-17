@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List
@@ -8,14 +8,20 @@ from ..schemas import schemas
 from ..services.ai_service import ai_service
 from .deps import get_current_user, RoleChecker
 from datetime import datetime
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 router = APIRouter(
     prefix="/tickets",
     tags=["tickets"]
 )
 
+limiter = Limiter(key_func=get_remote_address)
+
 @router.post("/", response_model=schemas.SupportRequestResponse)
+@limiter.limit("10/minute")
 async def create_ticket(
+    request: Request,
     ticket: schemas.SupportRequestCreate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(RoleChecker(["CLIENTE", "ADMIN"]))

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from ..database import get_db
@@ -13,17 +13,23 @@ from .security import (
 from passlib.context import CryptContext
 from jose import jwt, JWTError
 from .security import ALGORITHM, SECRET_KEY
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 router = APIRouter(
     prefix="/auth",
     tags=["auth"]
 )
 
+limiter = Limiter(key_func=get_remote_address)
+
 # Configuración de hashing usando Argon2id
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 @router.post("/login", response_model=schemas.Token)
+@limiter.limit("5/minute")
 def login(
+    request: Request,
     db: Session = Depends(get_db),
     form_data: OAuth2PasswordRequestForm = Depends()
 ):
@@ -48,7 +54,9 @@ def login(
     }
 
 @router.post("/refresh", response_model=schemas.Token)
+@limiter.limit("10/minute")
 def refresh_token(
+    request: Request,
     refresh_token: str = Body(...),
     db: Session = Depends(get_db)
 ):
@@ -72,7 +80,8 @@ def refresh_token(
     }
 
 @router.post("/register", response_model=schemas.UserResponse)
-def register(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def register(request: Request, user_data: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.email == user_data.email).first()
     if db_user:
         raise HTTPException(status_code=400, detail="El correo ya existe")
@@ -91,7 +100,8 @@ def register(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
     return new_user
 
 @router.post("/forgot-password")
-def forgot_password(request: schemas.PasswordResetRequest, db: Session = Depends(get_db)):
+@limiter.limit("3/minute")
+def forgot_password(request: Request, data: schemas.PasswordResetRequest, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == request.email).first()
     if not user:
         # Por seguridad no revelamos si el correo existe o no
@@ -109,7 +119,8 @@ def forgot_password(request: schemas.PasswordResetRequest, db: Session = Depends
     return {"message": "Si el correo está registrado, recibirás un enlace de recuperación."}
 
 @router.post("/reset-password")
-def reset_password(data: schemas.PasswordResetConfirm, db: Session = Depends(get_db)):
+@limiter.limit("3/minute")
+def reset_password(request: Request, data: schemas.PasswordResetConfirm, db: Session = Depends(get_db)):
     email = verify_password_reset_token(data.token)
     if not email:
         raise HTTPException(status_code=400, detail="Token inválido o expirado")
