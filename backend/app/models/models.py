@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Float, Enum, Text, CheckConstraint
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import func
 from ..database import Base
 import enum
@@ -65,7 +65,7 @@ class Technician(Base):
     average_rating = Column(Float, default=0.0)
     total_services = Column(Integer, default=0)
 
-    user = relationship("User", backref="technician_profile")
+    user = relationship("User", backref=backref("technician_profile", uselist=False))
     # Relación N:N con servicios que puede atender
     services = relationship("TechnicianService", back_populates="technician", cascade="all, delete-orphan")
 

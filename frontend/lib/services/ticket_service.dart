@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/api_config.dart';
 
 class TicketService {
-  final String baseUrl = "http://10.0.2.2"; // IP para emulador Android hacia localhost
+  final String baseUrl = ApiConfig.baseUrl;
 
   Future<Map<String, String>> _getHeaders() async {
     final prefs = await SharedPreferences.getInstance();

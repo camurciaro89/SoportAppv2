@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Body, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -26,32 +27,46 @@ limiter = Limiter(key_func=get_remote_address)
 # Configuración de hashing usando Argon2id
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
+def _authenticate(db: Session, email: str, password: str) -> models.User:
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user or not pwd_context.verify(password, user.contrasena):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Credenciales incorrectas",
+        )
+    return user
+
+
+def _token_payload(user: models.User) -> dict:
+    return {
+        "access_token": create_access_token(subject=user.id),
+        "refresh_token": create_refresh_token(subject=user.id),
+        "token_type": "bearer",
+        "user_type": user.user_type,
+    }
+
+
 @router.post("/login", response_model=schemas.Token)
 @limiter.limit("5/minute")
 def login(
     request: Request,
     db: Session = Depends(get_db),
-    form_data: OAuth2PasswordRequestForm = Depends()
+    form_data: OAuth2PasswordRequestForm = Depends(),
 ):
-    user = db.query(models.User).filter(models.User.email == form_data.username).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Credenciales incorrectas"
-        )
+    user = _authenticate(db, form_data.username, form_data.password)
+    return _token_payload(user)
 
-    if not pwd_context.verify(form_data.password, user.contrasena):
-         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Credenciales incorrectas"
-        )
 
-    return {
-        "access_token": create_access_token(subject=user.id),
-        "refresh_token": create_refresh_token(subject=user.id),
-        "token_type": "bearer",
-        "user_type": user.user_type
-    }
+@router.post("/login-json", response_model=schemas.Token)
+@limiter.limit("5/minute")
+def login_json(
+    request: Request,
+    credentials: schemas.LoginRequest,
+    db: Session = Depends(get_db),
+):
+    """Login para el cliente Flutter (JSON: email + contrasena)."""
+    user = _authenticate(db, credentials.email, credentials.contrasena)
+    return _token_payload(user)
 
 @router.post("/refresh", response_model=schemas.Token)
 @limiter.limit("10/minute")
@@ -91,18 +106,31 @@ def register(request: Request, user_data: schemas.UserCreate, db: Session = Depe
         email=user_data.email,
         nombre=user_data.nombre,
         telefono=user_data.telefono,
-        user_type=user_data.user_type,
-        contrasena=hashed_password
+        user_type=user_data.user_type or "CLIENTE",
+        contrasena=hashed_password,
+        is_active=True,
     )
     db.add(new_user)
     db.commit()
-    db.refresh(new_user)
-    return new_user
+    try:
+        db.refresh(new_user)
+    except Exception:
+        pass
+    return schemas.UserResponse(
+        id=new_user.id,
+        email=new_user.email,
+        nombre=new_user.nombre,
+        telefono=new_user.telefono,
+        user_type=new_user.user_type,
+        is_active=bool(new_user.is_active),
+        created_at=new_user.created_at or datetime.now(timezone.utc),
+        technician_profile=None,
+    )
 
 @router.post("/forgot-password")
 @limiter.limit("3/minute")
 def forgot_password(request: Request, data: schemas.PasswordResetRequest, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.email == request.email).first()
+    user = db.query(models.User).filter(models.User.email == data.email).first()
     if not user:
         # Por seguridad no revelamos si el correo existe o no
         return {"message": "Si el correo está registrado, recibirás un enlace de recuperación."}

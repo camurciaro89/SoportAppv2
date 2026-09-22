@@ -1,13 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/report_problem_screen.dart';
 import 'screens/technician_dashboard.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'screens/splash_screen.dart';
+import 'screens/admin_dashboard.dart';
+import 'services/app_state.dart';
+import 'theme/app_theme.dart';
 
 void main() {
-  runApp(const SoportApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AppState()),
+      ],
+      child: const SoportApp(),
+    ),
+  );
 }
 
 class SoportApp extends StatelessWidget {
@@ -16,19 +27,18 @@ class SoportApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SoportApp',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-        textTheme: GoogleFonts.interTextTheme(),
-      ),
-      initialRoute: '/login',
+      title: 'TuTranquilo',
+      theme: AppTheme.light(),
+      initialRoute: '/',
       routes: {
-        '/login': (context) => LoginScreen(),
-        '/register': (context) => RegisterScreen(),
-        '/welcome': (context) => HomeScreen(),
+        '/': (context) => const SplashScreen(),
+        '/login': (context) => const LoginScreen(),
+        '/register': (context) => const RegisterScreen(),
+        '/home': (context) => const HomeScreen(),
+        '/welcome': (context) => const HomeScreen(),
         '/report': (context) => ReportProblemScreen(),
-        '/technician': (context) => TechnicianDashboard(),
+        '/technician': (context) => const TechnicianDashboard(),
+        '/admin': (context) => const AdminDashboard(),
       },
       debugShowCheckedModeBanner: false,
     );

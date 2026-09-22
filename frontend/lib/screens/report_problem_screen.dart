@@ -66,7 +66,7 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Diagnóstico IA", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Reportar problema', style: TextStyle(fontWeight: FontWeight.w800)),
         leading: IconButton(
           icon: Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
@@ -220,11 +220,17 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
                   children: [
                     Icon(Icons.auto_awesome, color: Colors.blue[800]),
                     SizedBox(width: 12),
-                    Text("Análisis de la IA", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue[900])),
+                    Text("Diagnóstico Técnico", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue[900])),
                   ],
                 ),
                 SizedBox(height: 16),
-                Text(_finalDiagnosis!, style: TextStyle(fontSize: 15, height: 1.5)),
+                Text(_finalDiagnosis!, style: TextStyle(fontSize: 15, height: 1.5, color: Colors.blue[900])),
+                SizedBox(height: 12),
+                Divider(color: Colors.blue[200]),
+                Text(
+                  "Nota: Este es un análisis preliminar generado por IA local. Un técnico validará esta información al iniciar el servicio.",
+                  style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.blue[700]),
+                )
               ],
             ),
           ),

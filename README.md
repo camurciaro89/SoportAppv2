@@ -19,11 +19,54 @@ Hemos diseñado un proceso lineal y lógico que reduce la fricción inicial y as
 9.  **Seguimiento en Tiempo Real:** Panel de control inteligente que gestiona estados y pagos de excedentes ($30.000 por traslado/recogida).
 10. **Calificación Final:** Cierre del ciclo con feedback del usuario y construcción de reputación.
 
-## 🛠️ Aspectos Técnicos Destacados
-- **Arquitectura Escalable:** Desacoplamiento total entre el flujo de navegación y los datos del técnico asignado.
-- **Accesibilidad (A11y):** Optimización de fuentes (22sp+), áreas de toque (60dp+) y lenguaje simplificado para adultos mayores.
-- **Diseño Moderno:** Implementado con Jetpack Compose y Material Design 3.
-- **Seguridad Bancaria:** Flujo preparado para integración con pasarelas profesionales como **Wompi**.
+## 🛠️ Fase 4 — Tecnologías
+
+Arquitectura elegida (información técnica permanece en local vía Ollama):
+
+```
+                ┌─────────────────────┐
+                │      Flutter        │
+                │  App Android/iOS    │
+                └──────────┬──────────┘
+                           │
+                          HTTPS
+                           │
+                ┌──────────▼──────────┐
+                │       FastAPI       │
+                │       Backend       │
+                └─────┬──────┬───────┘
+                      │      │
+            ┌─────────┘      └──────────┐
+            ▼                            ▼
+     ┌──────────────┐             ┌──────────────┐
+     │ PostgreSQL   │             │ IA local     │
+     │ Base datos   │             │ Ollama       │
+     └──────────────┘             └──────────────┘
+```
+
+| Capa | Tecnología | Rol |
+| --- | --- | --- |
+| Frontend | **Flutter + Dart** (`frontend/`) | Un mismo código para Android y, después, iOS |
+| Backend | **Python + FastAPI** (`backend/`) | API REST, docs en `/docs`, integración con IA |
+| Base de datos | **PostgreSQL 15** | Persistencia de usuarios, tickets y diagnósticos |
+| IA | **Ollama + modelo local** (`llama3` por defecto) | Preguntas y diagnóstico sin enviar datos a una API externa |
+
+### Cómo levantar el stack
+
+```bash
+# 1. Backend + PostgreSQL + Ollama (el primer pull del modelo puede tardar)
+docker compose up --build
+
+# 2. API: http://localhost:8000  |  Docs: http://localhost:8000/docs  |  Salud: http://localhost:8000/health
+
+# 3. App Flutter (desde frontend/)
+flutter pub get
+flutter run
+```
+
+La app Flutter apunta por defecto a `http://10.0.2.2:8000` (emulador Android). En iOS simulator usa `--dart-define=API_BASE_URL=http://127.0.0.1:8000`.
+
+El módulo Android nativo (`app/`, Jetpack Compose) se conserva como prototipo local; el producto multiplataforma es Flutter + FastAPI.
 
 ## 📍 Potencial de Mercado
 Proyecto validado bajo las necesidades del mercado caleño:

@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../services/app_state.dart';
 import '../services/auth_service.dart';
+import '../theme/app_colors.dart';
+import '../widgets/ui_kit.dart';
 
 class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
   @override
-  _LoginScreenState createState() => _LoginScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
@@ -13,99 +19,112 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
-  void _handleLogin() async {
+  Future<void> _handleLogin() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     final result = await _authService.login(
-      _emailController.text,
+      _emailController.text.trim(),
       _passwordController.text,
     );
 
-    setState(() {
-      _isLoading = false;
-    });
+    if (!mounted) return;
+    setState(() => _isLoading = false);
 
-    if (result != null) {
-      final userType = result['user_type'];
-      // Navegación basada en el tipo de usuario
-      if (userType == "ADMIN") {
-        Navigator.pushReplacementNamed(context, '/welcome'); // Admin dashboard pendiente
-      } else if (userType == "TECNICO") {
-         Navigator.pushReplacementNamed(context, '/technician');
-      } else {
-        Navigator.pushReplacementNamed(context, '/welcome');
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Bienvenido, iniciando como $userType")),
-      );
-    } else {
-      setState(() {
-        _errorMessage = "Correo o contraseña incorrectos";
-      });
+    if (result == null) {
+      setState(() => _errorMessage = 'Correo o contraseña incorrectos');
+      return;
+    }
+
+    final userType = (result['user_type'] ?? 'CLIENTE').toString();
+    final token = result['access_token']?.toString() ?? '';
+    Provider.of<AppState>(context, listen: false).login(userType, token);
+
+    switch (userType.toUpperCase()) {
+      case 'ADMIN':
+        Navigator.pushReplacementNamed(context, '/admin');
+        break;
+      case 'TECNICO':
+        Navigator.pushReplacementNamed(context, '/technician');
+        break;
+      default:
+        Navigator.pushReplacementNamed(context, '/home');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              "TuTranquilo",
-              style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.blue[800]),
-            ),
-            SizedBox(height: 8),
-            Text("Inicia sesión para continuar", style: TextStyle(color: Colors.grey)),
-            SizedBox(height: 32),
-            TextField(
-              controller: _emailController,
-              decoration: InputDecoration(
-                labelText: "Correo electrónico",
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppColors.gradient),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  const BrandMark(size: 80, inverted: true),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'TuTranquilo',
+                    style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text('Inicia sesión para continuar', style: TextStyle(color: Colors.white70)),
+                  const SizedBox(height: 28),
+                  Card(
+                    elevation: 8,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(22),
+                      child: Column(
+                        children: [
+                          TextField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: const InputDecoration(
+                              labelText: 'Correo electrónico',
+                              prefixIcon: Icon(Icons.mail_outline),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          TextField(
+                            controller: _passwordController,
+                            obscureText: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Contraseña',
+                              prefixIcon: Icon(Icons.lock_outline),
+                            ),
+                          ),
+                          if (_errorMessage != null) ...[
+                            const SizedBox(height: 12),
+                            Text(_errorMessage!, style: const TextStyle(color: AppColors.danger)),
+                          ],
+                          const SizedBox(height: 20),
+                          ElevatedButton(
+                            onPressed: _isLoading ? null : _handleLogin,
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  )
+                                : const Text('Iniciar sesión'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pushNamed(context, '/register'),
+                            child: const Text('¿No tienes cuenta? Regístrate'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              keyboardType: TextInputType.emailAddress,
             ),
-            SizedBox(height: 16),
-            TextField(
-              controller: _passwordController,
-              decoration: InputDecoration(
-                labelText: "Contraseña",
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              obscureText: true,
-            ),
-            SizedBox(height: 24),
-            if (_errorMessage != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16.0),
-                child: Text(_errorMessage!, style: TextStyle(color: Colors.red)),
-              ),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _handleLogin,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue[900],
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: _isLoading
-                  ? CircularProgressIndicator(color: Colors.white)
-                  : Text("Iniciar Sesión", style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pushNamed(context, '/register'),
-              child: Text("¿No tienes cuenta? Regístrate aquí"),
-            ),
-          ],
+          ),
         ),
       ),
     );

@@ -1,22 +1,28 @@
-from fastapi import FastAPI, Depends, HTTPException, Request, Response
-from sqlalchemy.orm import Session
-from .database import engine, Base, get_db
-from .models import models
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request, Response
+from .database import engine, Base
+from .models import models  # noqa: F401 — registra entidades para create_all
 from .services.ai_service import ai_service
 from .api import auth, equipments, tickets, users, ratings
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-import time
 import logging
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    yield
+
 
 # Configuración de Rate Limiting
 limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(
     title="SoportApp Backend",
-    description="API para gestión de soporte técnico e IA local (Ollama)",
-    version="1.0.0"
+    description="API REST (FastAPI) + PostgreSQL + IA local (Ollama). Cliente: Flutter.",
+    version="1.0.0",
+    lifespan=lifespan,
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -57,7 +63,26 @@ async def add_security_headers_and_handle_errors(request: Request, call_next):
 @app.get("/")
 @limiter.limit("100/minute")
 def read_root(request: Request):
-    return {"status": "SoportApp API Running", "ia_engine": "Ollama (Llama 3)"}
+    return {
+        "status": "SoportApp API Running",
+        "stack": {
+            "frontend": "Flutter + Dart",
+            "backend": "Python + FastAPI",
+            "database": "PostgreSQL",
+            "ai": "Ollama (modelo local)",
+        },
+    }
+
+
+@app.get("/health")
+async def health():
+    ai_ok = await ai_service.is_available()
+    return {
+        "api": "ok",
+        "database": "configured",
+        "ollama": "ok" if ai_ok else "unavailable",
+        "model": ai_service.model,
+    }
 
 # Registro de rutas
 app.include_router(auth.router)
@@ -65,7 +90,3 @@ app.include_router(users.router)
 app.include_router(equipments.router)
 app.include_router(tickets.router)
 app.include_router(ratings.router)
-
-# Aquí se agregarían los routers para auth, tickets, etc.
-# app.include_router(auth.router)
-# app.include_router(tickets.router)

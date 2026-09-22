@@ -1,7 +1,22 @@
-from pydantic import BaseModel, EmailStr, field_validator
+from __future__ import annotations
+from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 from typing import Optional, List
 from datetime import datetime
 import bleach
+
+# --- TÉCNICOS (antes de UserResponse para evitar ForwardRef incompleto) ---
+
+class TechnicianBase(BaseModel):
+    specialty: str
+    experience_years: int
+    is_verified: bool = False
+
+class TechnicianResponse(TechnicianBase):
+    id: int
+    average_rating: float
+    total_services: int
+
+    model_config = ConfigDict(from_attributes=True)
 
 # --- USUARIOS ---
 
@@ -20,8 +35,7 @@ class UserResponse(UserBase):
     created_at: datetime
     technician_profile: Optional[TechnicianResponse] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -43,21 +57,6 @@ class PasswordResetConfirm(BaseModel):
     token: str
     new_password: str
 
-# --- TÉCNICOS ---
-
-class TechnicianBase(BaseModel):
-    specialty: str
-    experience_years: int
-    is_verified: bool = False
-
-class TechnicianResponse(TechnicianBase):
-    id: int
-    average_rating: float
-    total_services: int
-
-    class Config:
-        from_attributes = True
-
 # --- EQUIPOS ---
 
 class EquipmentBase(BaseModel):
@@ -75,8 +74,7 @@ class EquipmentResponse(EquipmentBase):
     user_id: int
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # --- TICKETS ---
 
@@ -109,9 +107,9 @@ class SupportRequestResponse(SupportRequestBase):
     prioridad: str
     created_at: datetime
     completed_at: Optional[datetime] = None
+    ai_diagnosis: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # --- DIAGNÓSTICO IA ---
 
@@ -135,8 +133,7 @@ class AIDiagnosisResponse(BaseModel):
     suggested_priority: str
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # --- CALIFICACIONES ---
 
@@ -159,5 +156,4 @@ class RatingResponse(RatingCreate):
     general_score: float
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

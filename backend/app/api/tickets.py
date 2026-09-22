@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List
+import json
 from ..database import get_db
 from ..models import models
 from ..schemas import schemas
@@ -36,16 +37,22 @@ async def confirm_ticket(
     current_user: models.User = Depends(get_current_user)
 ):
     """
-    Paso 2: Recibe las respuestas, genera el diagnóstico final y crea el ticket.
+    Paso 2: Recibe las respuestas, genera el diagnóstico final estructurado y crea el ticket.
     """
-    # 1. Generar diagnóstico final con todo el contexto
+    # 1. Generar diagnóstico final
     qa_history = [{"question": a.question, "answer": a.answer} for a in data.answers]
-    diagnosis_text = await ai_service.generate_final_diagnosis(data.problem_description, qa_history)
+    raw_ai_response = await ai_service.generate_final_diagnosis(data.problem_description, qa_history)
 
-    # 2. Determinar prioridad (lógica simple de extracción)
-    priority = "Media"
-    if "Alta" in diagnosis_text: priority = "Alta"
-    elif "Baja" in diagnosis_text: priority = "Baja"
+    # 2. Parsear el JSON de la IA
+    try:
+        start = raw_ai_response.find("{")
+        end = raw_ai_response.rfind("}") + 1
+        ai_data = json.loads(raw_ai_response[start:end])
+        diagnosis_text = f"{ai_data.get('diagnostico')}\n\nCausas: {', '.join(ai_data.get('causas', []))}\nAcción: {ai_data.get('accion')}"
+        priority = ai_data.get('prioridad', 'Media')
+    except:
+        diagnosis_text = raw_ai_response
+        priority = "Media"
 
     # 3. Crear el ticket oficial
     db_ticket = models.SupportRequest(
@@ -71,7 +78,8 @@ async def confirm_ticket(
     db.add(db_ai)
     db.commit()
 
-    return db_ticket
+    payload = schemas.SupportRequestResponse.model_validate(db_ticket)
+    return payload.model_copy(update={"ai_diagnosis": diagnosis_text})
 
 @router.post("/", response_model=schemas.SupportRequestResponse)
 @limiter.limit("10/minute")
